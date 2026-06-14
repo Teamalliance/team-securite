@@ -38,6 +38,11 @@
   .field label{display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
   .field input{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);padding:9px 11px;border-radius:8px;font-size:14px;font-family:inherit}
   .field input:focus{outline:none;border-color:var(--accent)}
+  .field select{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);padding:9px 11px;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer}
+  .field select:focus{outline:none;border-color:var(--accent)}
+  .client-bar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+  .client-bar .field{flex:1;min-width:220px;margin:0}
+  .client-bar .btn{height:38px}
 
   /* Tableau lignes facture */
   .lines{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;overflow-x:auto;margin-bottom:18px}
@@ -113,7 +118,7 @@
 
 <main>
   <div class="bar">
-    <h2>Facturation SERIS</h2>
+    <h2>Facturation</h2>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap" class="actions-row">
       <div class="period">
         <button data-act="prev">‹</button>
@@ -130,8 +135,17 @@
     Tu peux <b>ajuster chaque quantité à la main</b> (chiffres négociés) avant d'éditer la facture. Tarifs et TVA sont appliqués automatiquement.
   </div>
 
+  <div class="client-bar">
+    <div class="field">
+      <label>Client</label>
+      <select id="cli-select"><option value="__new__">➕ Nouveau client…</option></select>
+    </div>
+    <button class="btn" data-act="cli-save" type="button">💾 Enregistrer</button>
+    <button class="btn-ghost btn" data-act="cli-del" type="button" title="Supprimer ce client">🗑</button>
+  </div>
+
   <div class="client-card">
-    <div class="field"><label>Client</label><input id="cli-nom" value="SERIS SECURITY"></div>
+    <div class="field"><label>Nom du client</label><input id="cli-nom" value="SERIS SECURITY"></div>
     <div class="field"><label>N° de commande</label><input id="cli-cmd" placeholder="ex : 20260650066"></div>
     <div class="field"><label>Email client</label><input id="cli-mail" value="jtourret@seris.fr"></div>
     <div class="field"><label>N° de facture</label><input id="fac-num" placeholder="ex : FACT0234"></div>
@@ -357,6 +371,8 @@
     if(act==='prev'){cursor.setMonth(cursor.getMonth()-1);recalc();}
     else if(act==='next'){cursor.setMonth(cursor.getMonth()+1);recalc();}
     else if(act==='recalc'){recalc();toast('Quantités recalculées depuis le planning');}
+    else if(act==='cli-save'){enregistrerClient();}
+    else if(act==='cli-del'){supprimerClient();}
     else if(act==='print'){
       if(!$('fac-num').value){toast('Renseigne un n° de facture d\'abord');$('fac-num').focus();return;}
       buildInvoice();
@@ -364,6 +380,87 @@
     }
   });
 
+  // ---- Carnet de clients (Supabase) ----
+  var clients=[];
+  function remplirSelectClients(selId){
+    var sel=$('cli-select'); if(!sel) return;
+    var opts='';
+    clients.forEach(function(c){
+      opts+='<option value="'+c.id+'"'+(c.id===selId?' selected':'')+'>'+esc(c.nom)+'</option>';
+    });
+    opts+='<option value="__new__"'+(selId==='__new__'?' selected':'')+'>➕ Nouveau client…</option>';
+    sel.innerHTML=opts;
+  }
+  function appliquerClient(c){
+    $('cli-nom').value = c ? c.nom : '';
+    $('cli-mail').value = c ? (c.email||'') : '';
+    $('cli-cmd').value = c ? (c.num_commande||'') : '';
+  }
+  async function chargerClients(){
+    try{
+      var r=await db.from('clients').select('*').order('nom');
+      if(r.error) throw r.error;
+      clients=(r.data||[]);
+      if(clients.length){
+        var def=clients.filter(function(c){return /seris/i.test(c.nom);})[0]||clients[0];
+        remplirSelectClients(def.id);
+        appliquerClient(def);
+      }else{
+        remplirSelectClients('__new__');
+      }
+    }catch(err){
+      // table absente ou hors-ligne : on garde les valeurs par défaut affichées
+      remplirSelectClients('__new__');
+    }
+  }
+  async function enregistrerClient(){
+    var nom=($('cli-nom').value||'').trim();
+    if(!nom){toast('Renseigne le nom du client');$('cli-nom').focus();return;}
+    var payload={nom:nom,email:($('cli-mail').value||'').trim(),num_commande:($('cli-cmd').value||'').trim()};
+    var sel=$('cli-select').value, savedId=null;
+    try{
+      if(sel && sel!=='__new__'){
+        var u=await db.from('clients').update(payload).eq('id',sel).select();
+        if(u.error) throw u.error;
+        savedId=sel; toast('Client mis à jour');
+      }else{
+        var i=await db.from('clients').insert(payload).select();
+        if(i.error) throw i.error;
+        savedId=(i.data&&i.data[0])?i.data[0].id:null;
+        toast('Nouveau client enregistré');
+      }
+      await chargerClients();
+      var saved=clients.filter(function(c){return c.id===savedId;})[0]
+              ||clients.filter(function(c){return c.nom===nom;})[0];
+      if(saved){remplirSelectClients(saved.id);appliquerClient(saved);}
+    }catch(err){
+      toast('Échec : la table clients existe-t-elle ?');
+    }
+  }
+  async function supprimerClient(){
+    var sel=$('cli-select').value;
+    if(!sel||sel==='__new__'){toast('Aucun client sélectionné');return;}
+    var c=clients.filter(function(x){return x.id===sel;})[0];
+    if(!c) return;
+    if(!confirm('Supprimer le client « '+c.nom+' » ? Les factures déjà éditées ne sont pas affectées.')) return;
+    try{
+      var d=await db.from('clients').delete().eq('id',sel);
+      if(d.error) throw d.error;
+      toast('Client supprimé');
+      await chargerClients();
+    }catch(err){
+      toast('Échec de la suppression');
+    }
+  }
+  document.addEventListener('change',function(e){
+    if(e.target && e.target.id==='cli-select'){
+      var v=e.target.value;
+      if(v==='__new__'){appliquerClient(null);$('cli-nom').focus();}
+      else{var c=clients.filter(function(x){return x.id===v;})[0];if(c)appliquerClient(c);}
+    }
+  });
+
+  chargerClients();
   chargerTout();
 })();
 </script>
