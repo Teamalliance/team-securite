@@ -241,65 +241,24 @@
 
 <div id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   "use strict";
 
+  var SB_URL = 'https://vympsutcqeyjmtatwyyo.supabase.co';
+  var SB_KEY = 'sb_publishable_tR_1tWd030ZjBSeOBS7QPg_qV8DZ7IA';
+  var db = supabase.createClient(SB_URL, SB_KEY);
+
   function $(id){ return document.getElementById(id); }
-  function load(k,def){ try{ var v=JSON.parse(localStorage.getItem('ats_'+k)); return v==null?def:v; }catch(e){ return def; } }
-  function save(k,v){ try{ localStorage.setItem('ats_'+k, JSON.stringify(v)); }catch(e){} }
   function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
   function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function toast(m){ var t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2200); }
 
-  /* ---- Données partagées avec le module 1 (mêmes clés localStorage) ---- */
-  var agents = load('agents',[]);
+  var agents=[], vacs=[], planning={};
 
-  /* ---- Vacations : pré-chargées depuis le planning Comète La Coupole ---- */
-  var DEFAULT_VACS = [
-    {id:'j01',code:'J01',type:'jour',lib:'Agent ouverture SSIAP 1',act:'ADS-SSIAP 1',debut:'04:30',fin:'08:30'},
-    {id:'j02',code:'J02',type:'jour',lib:'Agent matin Coupole',act:'ADS',debut:'08:15',fin:'14:15'},
-    {id:'j03',code:'J03',type:'jour',lib:'Agent PC incendie SSIAP 2',act:'SSIAP 2',debut:'08:30',fin:'20:45'},
-    {id:'j04',code:'J04',type:'jour',lib:'Agent galerie après-midi',act:'ADS',debut:'13:30',fin:'20:45'},
-    {id:'j05',code:'J05',type:'jour',lib:'Agent arrière caisse Carrefour',act:'ADS',debut:'15:45',fin:'21:00'},
-    {id:'j06',code:'J06',type:'jour',lib:'Agent renfort Coupole',act:'ADS',debut:'16:30',fin:'20:45'},
-    {id:'j07',code:'J07',type:'jour',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'11:30',fin:'20:30'},
-    {id:'j08',code:'J08',type:'jour',lib:'Agent ouverture SSIAP 1',act:'ADS-SSIAP 1',debut:'04:30',fin:'08:15'},
-    {id:'j09',code:'J09',type:'jour',lib:'Agent PC incendie SSIAP 2',act:'SSIAP 2',debut:'08:15',fin:'20:45'},
-    {id:'n01',code:'N01',type:'nuit',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'20:45',fin:'04:30'},
-    {id:'n02',code:'N02',type:'nuit',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'20:45',fin:'11:30'},
-    {id:'n03',code:'N03',type:'nuit',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'20:30',fin:'04:30'},
-    {id:'n04',code:'N04',type:'nuit',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'21:00',fin:'04:30'},
-    {id:'cp', code:'CP', type:'cp',  lib:'Congés payés',act:'',debut:'',fin:''}
-  ];
-  var vacs = load('vacations', null);
-  if(vacs==null){ vacs = DEFAULT_VACS.slice(); save('vacations',vacs); }
+  function closeAll(){ var ovs=document.querySelectorAll('.overlay'); for(var i=0;i<ovs.length;i++) ovs[i].classList.remove('open'); }
 
-  /* ---- Planning : { "YYYY-MM-DD|agentId": vacId } ---- */
-  var planning = load('planning', {});
-
-  /* ---- Helpers date ---- */
-  var MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-  var JOURS=['dim','lun','mar','mer','jeu','ven','sam'];
-  var cursor = new Date(); cursor.setHours(0,0,0,0);
-  function pad(n){ return n<10?'0'+n:''+n; }
-  function ymd(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
-  function isWE(d){ var g=d.getDay(); return g===0||g===6; }
-  function vacById(id){ for(var i=0;i<vacs.length;i++) if(vacs[i].id===id) return vacs[i]; return null; }
-  function agentById(id){ for(var i=0;i<agents.length;i++) if(agents[i].id===id) return agents[i]; return null; }
-  function agentLabel(a){ return a.prenom+' '+a.nom; }
-
-  /* ---- Calcul durée d'une vacation (gère passage minuit) ---- */
-  function vacHours(v){
-    if(!v||!v.debut||!v.fin) return 0;
-    var d=v.debut.split(':'), f=v.fin.split(':');
-    var m1=(+d[0])*60+(+d[1]), m2=(+f[0])*60+(+f[1]);
-    if(m2<=m1) m2+=1440;
-    return (m2-m1)/60;
-  }
-  function fmtH(h){ if(!h) return '0'; return (Math.round(h*100)/100).toString().replace('.',',')+'h'; }
-
-  /* ---- Navigation onglets ---- */
   var navBtns=document.querySelectorAll('nav button');
   for(var i=0;i<navBtns.length;i++){
     navBtns[i].addEventListener('click',function(){
@@ -309,7 +268,41 @@
     });
   }
 
-  /* ================= VACATIONS ================= */
+  function initials(p,n){ return ((p&&p[0]||'')+(n&&n[0]||'')).toUpperCase(); }
+  function fmtDate(d){ if(!d) return ''; var p=d.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+  function vacById(id){ for(var i=0;i<vacs.length;i++) if(vacs[i].id===id) return vacs[i]; return null; }
+  function agentLabel(a){ return a.prenom+' '+a.nom; }
+
+  function vacHours(v){
+    if(!v||!v.debut||!v.fin) return 0;
+    var d=v.debut.split(':'), f=v.fin.split(':');
+    var m1=(+d[0])*60+(+d[1]), m2=(+f[0])*60+(+f[1]);
+    if(m2<=m1) m2+=1440;
+    return (m2-m1)/60;
+  }
+  function fmtH(h){ if(!h) return '0'; return (Math.round(h*100)/100).toString().replace('.',',')+'h'; }
+
+  var MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  var JOURS=['dim','lun','mar','mer','jeu','ven','sam'];
+  var cursor = new Date(); cursor.setHours(0,0,0,0);
+  function pad(n){ return n<10?'0'+n:''+n; }
+  function ymd(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function isWE(d){ var g=d.getDay(); return g===0||g===6; }
+  function isMobile(){ return window.matchMedia('(max-width:879px)').matches; }
+  function weekStart(d){ var x=new Date(d); var g=(x.getDay()+6)%7; x.setDate(x.getDate()-g); x.setHours(0,0,0,0); return x; }
+
+  /* ====== Chargement Supabase ====== */
+  async function chargerTout(){
+    var ra=await db.from('agents').select('*').order('cree_le');
+    var rv=await db.from('vacations').select('*');
+    var rp=await db.from('planning').select('*');
+    agents=(ra.data||[]).map(function(x){return {id:x.id,prenom:x.prenom,nom:x.nom};});
+    vacs=(rv.data||[]).map(function(x){return {id:x.id,code:x.code,type:x.type,lib:x.lib,act:x.act,debut:x.debut,fin:x.fin};});
+    planning={};
+    (rp.data||[]).forEach(function(x){ if(x.vac_id) planning[x.cle]=x.vac_id; });
+    renderVacs(); renderPlanning();
+  }
+
   function renderVacs(){
     var el=$('vac-list');
     if(!vacs.length){ el.innerHTML='<div class="empty"><div class="ic">🕐</div><p>Aucune vacation</p></div>'; return; }
@@ -338,25 +331,24 @@
     $('v-code').value=v?v.code:''; $('v-type').value=v?v.type:'jour';
     $('v-lib').value=v?v.lib:''; $('v-act').value=v?v.act:'';
     $('v-debut').value=v?v.debut:''; $('v-fin').value=v?v.fin:'';
+    $('v-times').style.display = ($('v-type').value==='cp')?'none':'grid';
     $('ov-vac').classList.add('open');
   }
-  function saveVac(){
+  async function saveVac(){
     var code=$('v-code').value.trim().toUpperCase();
     if(!code){ toast('Code requis'); return; }
     var type=$('v-type').value;
     var o={ id:$('v-id').value||uid(), code:code, type:type, lib:$('v-lib').value.trim(),
             act:$('v-act').value.trim(), debut:type==='cp'?'':$('v-debut').value, fin:type==='cp'?'':$('v-fin').value };
-    var found=false;
-    for(var i=0;i<vacs.length;i++) if(vacs[i].id===o.id){ vacs[i]=o; found=true; }
-    if(!found) vacs.push(o);
-    save('vacations',vacs); renderVacs(); closeAll(); toast('Vacation enregistrée');
+    var r=await db.from('vacations').upsert(o);
+    if(r.error){ toast('Erreur: '+r.error.message); return; }
+    closeAll(); toast('Vacation enregistrée'); await chargerTout();
   }
-  function delVac(id){
+  async function delVac(id){
     if(!confirm('Supprimer cette vacation ?')) return;
-    vacs=vacs.filter(function(x){return x.id!==id;}); save('vacations',vacs); renderVacs(); toast('Vacation supprimée');
+    await db.from('vacations').delete().eq('id',id); toast('Vacation supprimée'); await chargerTout();
   }
 
-  /* ================= PLANNING : période ================= */
   function periodLabel(){
     if(isMobile()){
       var ws=weekStart(cursor); var we=new Date(ws); we.setDate(ws.getDate()+6);
@@ -364,31 +356,24 @@
     }
     return MOIS[cursor.getMonth()].charAt(0).toUpperCase()+MOIS[cursor.getMonth()].slice(1)+' '+cursor.getFullYear();
   }
-  function isMobile(){ return window.matchMedia('(max-width:879px)').matches; }
-  function weekStart(d){ var x=new Date(d); var g=(x.getDay()+6)%7; x.setDate(x.getDate()-g); x.setHours(0,0,0,0); return x; }
-
   function shift(dir){
     if(isMobile()) cursor.setDate(cursor.getDate()+dir*7);
     else cursor.setMonth(cursor.getMonth()+dir);
     renderPlanning();
   }
-  function goToday(){ cursor=new Date(); renderPlanning(); }
+  function goToday(){ cursor=new Date(); cursor.setHours(0,0,0,0); renderPlanning(); }
 
-  /* ---- Grille mensuelle (desktop) ---- */
   function renderMonth(){
     var y=cursor.getFullYear(), m=cursor.getMonth();
     var days=new Date(y,m+1,0).getDate();
-    var actifs=agents;
-    if(!actifs.length){ $('plan-month').innerHTML='<div class="empty" style="border:none"><div class="ic">👮</div><p>Aucun agent. Crée des agents dans le module 1 d\'abord.</p></div>'; return; }
-
+    if(!agents.length){ $('plan-month').innerHTML='<div class="empty" style="border:none"><div class="ic">👮</div><p>Aucun agent. Crée des agents dans le module 1 d\'abord.</p></div>'; return; }
     var head='<tr><th class="agent-col">Agent</th>';
     for(var d=1;d<=days;d++){ var dt=new Date(y,m,d); var we=isWE(dt)?' we':'';
       head+='<th class="'+we.trim()+'">'+JOURS[dt.getDay()].charAt(0).toUpperCase()+'<br>'+pad(d)+'</th>'; }
     head+='<th class="tot-col">Tot.</th></tr>';
-
     var dayTot={}; for(var d=1;d<=days;d++) dayTot[d]=0;
     var body='';
-    for(var a=0;a<actifs.length;a++){ var ag=actifs[a]; var rowTot=0;
+    for(var a=0;a<agents.length;a++){ var ag=agents[a]; var rowTot=0;
       body+='<tr><td class="agent-col">'+esc(agentLabel(ag))+'</td>';
       for(var d=1;d<=days;d++){ var dt=new Date(y,m,d); var key=ymd(dt)+'|'+ag.id; var vid=planning[key];
         var we=isWE(dt)?' we':'';
@@ -401,15 +386,12 @@
       }
       body+='<td class="tot-col">'+(Math.round(rowTot*10)/10)+'</td></tr>';
     }
-    var foot='<tr><td class="agent-col">Total / jour</td>';
-    var grand=0;
+    var foot='<tr><td class="agent-col">Total / jour</td>'; var grand=0;
     for(var d=1;d<=days;d++){ foot+='<td>'+(Math.round(dayTot[d]*10)/10||'')+'</td>'; grand+=dayTot[d]; }
     foot+='<td class="tot-col">'+(Math.round(grand*10)/10)+'</td></tr>';
-
     $('plan-month').innerHTML='<table class="plan"><thead>'+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table>';
   }
 
-  /* ---- Vue semaine (mobile) ---- */
   function renderWeek(){
     var ws=weekStart(cursor);
     if(!agents.length){ $('plan-week').innerHTML='<div class="empty"><div class="ic">👮</div><p>Aucun agent. Crée des agents dans le module 1 d\'abord.</p></div>'; return; }
@@ -438,49 +420,46 @@
     if(isMobile()) renderWeek(); else renderMonth();
   }
 
-  /* ================= AFFECTATION ================= */
   var assignCtx={date:null,agentId:null};
+  var pickedVac=null;
   function openAssign(dateStr,agentId){
     if(!agents.length){ toast('Crée des agents d\'abord (module 1)'); return; }
     assignCtx.date=dateStr; assignCtx.agentId=agentId||'';
     var dt=new Date(dateStr+'T00:00:00');
     $('assign-sub').textContent=JOURS[dt.getDay()].charAt(0).toUpperCase()+JOURS[dt.getDay()].slice(1)+' '+dt.getDate()+' '+MOIS[dt.getMonth()]+' '+dt.getFullYear();
-    // agents
     var asel=$('as-agent'); var ah='';
     for(var i=0;i<agents.length;i++) ah+='<option value="'+agents[i].id+'"'+(agents[i].id===assignCtx.agentId?' selected':'')+'>'+esc(agentLabel(agents[i]))+'</option>';
     asel.innerHTML=ah;
-    // vac picker
     renderVacPicker(planning[dateStr+'|'+(assignCtx.agentId||asel.value)]);
     $('ov-assign').classList.add('open');
   }
-  var pickedVac=null;
   function renderVacPicker(selId){
     pickedVac=selId||null;
-    var h=''; 
+    var h='';
     for(var i=0;i<vacs.length;i++){ var v=vacs[i]; var cls=v.type==='nuit'?'nuit':(v.type==='cp'?'cp':'jour');
       h+='<div class="vp '+cls+(v.id===pickedVac?' sel':'')+'" data-act="pick-vac" data-id="'+v.id+'">'+
          '<div class="c">'+esc(v.code)+'</div><div class="t">'+(v.debut?v.debut:'—')+'</div></div>';
     }
     $('as-vacpick').innerHTML=h;
   }
-  function saveAssign(){
+  async function saveAssign(){
     var agentId=$('as-agent').value;
     var key=assignCtx.date+'|'+agentId;
-    if(pickedVac){ planning[key]=pickedVac; } else { delete planning[key]; }
-    save('planning',planning); closeAll(); renderPlanning(); toast('Planning mis à jour');
+    if(pickedVac){
+      await db.from('planning').upsert({cle:key, date_jour:assignCtx.date, agent_id:agentId, vac_id:pickedVac});
+    } else {
+      await db.from('planning').delete().eq('cle',key);
+    }
+    closeAll(); toast('Planning mis à jour'); await chargerTout();
   }
-  function clearAssign(){
+  async function clearAssign(){
     var agentId=$('as-agent').value;
-    delete planning[assignCtx.date+'|'+agentId];
-    save('planning',planning); closeAll(); renderPlanning(); toast('Case vidée');
+    await db.from('planning').delete().eq('cle',assignCtx.date+'|'+agentId);
+    closeAll(); toast('Case vidée'); await chargerTout();
   }
-
-  /* ================= Événements ================= */
-  function closeAll(){ var ovs=document.querySelectorAll('.overlay'); for(var i=0;i<ovs.length;i++) ovs[i].classList.remove('open'); }
 
   document.addEventListener('click',function(e){
     var t=e.target.closest ? e.target.closest('[data-act]') : null;
-    // clic sur cellule planning (desktop)
     if(!t){
       var cell=e.target.closest ? e.target.closest('td[data-day]') : null;
       if(cell){ var d=cell.getAttribute('data-day'); var ag=cell.getAttribute('data-agent');
@@ -502,17 +481,12 @@
     else if(act==='pick-vac'){ pickedVac=(pickedVac===id?null:id); renderVacPicker(pickedVac); }
     else if(act==='close') closeAll();
   });
-  $('as-agent') && $('as-agent').addEventListener('change',function(){
-    renderVacPicker(planning[assignCtx.date+'|'+this.value]);
-  });
-  $('v-type') && $('v-type').addEventListener('change',function(){
-    $('v-times').style.display=this.value==='cp'?'none':'grid';
-  });
   document.querySelectorAll('.overlay').forEach(function(ov){ ov.addEventListener('click',function(e){ if(e.target===ov) closeAll(); }); });
+  if($('as-agent')) $('as-agent').addEventListener('change',function(){ renderVacPicker(planning[assignCtx.date+'|'+this.value]); });
+  if($('v-type')) $('v-type').addEventListener('change',function(){ $('v-times').style.display=this.value==='cp'?'none':'grid'; });
   window.addEventListener('resize',function(){ renderPlanning(); });
 
-  /* ---- Init ---- */
-  renderVacs(); renderPlanning();
+  chargerTout();
 })();
 </script>
 </body>
