@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Sécurité — Planning</title>
+<style>
+  :root{
+    --bg:#0f1419;--panel:#161d26;--panel-2:#1d2530;--line:#2a3441;
+    --ink:#e8edf2;--ink-soft:#94a3b4;--ink-faint:#5f6e7e;
+    --accent:#f5a623;--accent-deep:#c97f0a;--ok:#3fb950;--danger:#f0566d;
+    --jour:#3b82f6;--nuit:#7c5cff;--cp:#3fb950;--radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  header{background:linear-gradient(180deg,#1a222d,#11161d);border-bottom:2px solid var(--accent);padding:14px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:50}
+  .logo{width:38px;height:38px;border-radius:8px;background:repeating-linear-gradient(45deg,var(--accent) 0 8px,#11161d 8px 16px);flex:none;border:1px solid var(--accent-deep)}
+  header h1{font-size:17px;letter-spacing:.5px;font-weight:700}
+  header h1 span{color:var(--accent);font-weight:800}
+  header .sub{font-size:11px;color:var(--ink-faint);letter-spacing:1.5px;text-transform:uppercase}
+  nav{display:flex;gap:2px;background:var(--panel);padding:0 22px;border-bottom:1px solid var(--line);position:sticky;top:67px;z-index:40;overflow-x:auto}
+  nav button{background:none;border:none;color:var(--ink-soft);padding:13px 18px;font-size:13.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+  nav button:hover{color:var(--ink)}
+  nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  main{max-width:1400px;margin:0 auto;padding:20px 16px 80px}
+  .view{display:none}
+  .view.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+  .bar h2{font-size:19px;font-weight:700}
+  .btn{background:var(--accent);color:#1a1206;border:none;padding:9px 15px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{background:#ffb733}
+  .btn-ghost{background:var(--panel-2);color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{background:var(--line)}
+  .btn-sm{padding:6px 10px;font-size:12px}
+  .icon-btn{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-soft);width:32px;height:32px;border-radius:7px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .icon-btn:hover{color:var(--ink);border-color:var(--ink-faint)}
+  .icon-btn.del:hover{color:var(--danger);border-color:var(--danger)}
+
+  /* Période nav */
+  .period{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:5px}
+  .period button{background:none;border:none;color:var(--ink-soft);width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:16px}
+  .period button:hover{background:var(--panel-2);color:var(--ink)}
+  .period .lbl{font-weight:700;font-size:13.5px;min-width:130px;text-align:center}
+
+  /* Vacations cards */
+  .vac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:11px}
+  .vac{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--jour);border-radius:var(--radius);padding:13px 15px;position:relative}
+  .vac.nuit{border-left-color:var(--nuit)}
+  .vac .code{font-weight:800;font-size:15px;letter-spacing:.5px}
+  .vac.jour .code{color:#7eb0ff}.vac.nuit .code{color:#b9a6ff}
+  .vac .lib{font-size:12.5px;color:var(--ink-soft);margin:3px 0 7px}
+  .vac .time{font-size:13px;font-weight:600}
+  .vac .acts{display:inline-block;font-size:10.5px;color:var(--ink-faint);border:1px solid var(--line);border-radius:20px;padding:1px 8px;margin-top:7px}
+  .vac .vac-actions{position:absolute;top:10px;right:10px;display:flex;gap:5px}
+  .badge-hours{font-size:11px;color:var(--accent);font-weight:700;margin-top:6px}
+
+  /* Planning grille */
+  .pl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+  table.plan{border-collapse:collapse;width:100%;font-size:12px}
+  table.plan th,table.plan td{border:1px solid var(--line);text-align:center;padding:0}
+  table.plan thead th{background:var(--panel-2);position:sticky;top:0;z-index:2;font-weight:700;padding:6px 4px;font-size:11px;white-space:nowrap}
+  table.plan thead th.we{color:var(--accent)}
+  table.plan .agent-col{position:sticky;left:0;background:var(--panel-2);z-index:1;text-align:left;padding:8px 10px;font-weight:600;min-width:150px;white-space:nowrap}
+  table.plan tbody td{min-width:42px;height:42px;cursor:pointer}
+  table.plan tbody td:hover{background:var(--panel-2)}
+  table.plan td.we{background:rgba(245,166,35,.05)}
+  .cell-code{font-weight:800;font-size:11px;border-radius:5px;padding:3px 0;margin:2px;color:#fff}
+  .cell-code.jour{background:rgba(59,130,246,.25);color:#9ec5ff;border:1px solid rgba(59,130,246,.4)}
+  .cell-code.nuit{background:rgba(124,92,255,.25);color:#c4b3ff;border:1px solid rgba(124,92,255,.4)}
+  .cell-code.cp{background:rgba(63,185,80,.2);color:#86e29a;border:1px solid rgba(63,185,80,.4)}
+  .tot-col{position:sticky;right:0;background:var(--panel-2);font-weight:800;color:var(--accent);min-width:54px}
+  table.plan tfoot td{background:var(--panel-2);font-weight:800;padding:7px 4px;font-size:11px}
+
+  /* Semaine (mobile) */
+  .week{display:grid;gap:10px}
+  .wday{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .wday.we{border-color:rgba(245,166,35,.3)}
+  .wday-head{background:var(--panel-2);padding:9px 13px;display:flex;justify-content:space-between;align-items:center}
+  .wday-head .d{font-weight:700;font-size:13.5px}
+  .wday-head .d span{color:var(--ink-faint);font-weight:500;text-transform:capitalize}
+  .wday-head .h{font-size:12px;font-weight:700;color:var(--accent)}
+  .wslot{display:flex;align-items:center;gap:10px;padding:9px 13px;border-top:1px solid var(--line)}
+  .wslot .ag{flex:1;font-size:13.5px;font-weight:600}
+  .wslot .cd{font-weight:800;font-size:11px;padding:3px 8px;border-radius:5px}
+  .wslot .cd.jour{background:rgba(59,130,246,.2);color:#9ec5ff}
+  .wslot .cd.nuit{background:rgba(124,92,255,.2);color:#c4b3ff}
+  .wslot .cd.cp{background:rgba(63,185,80,.2);color:#86e29a}
+  .wslot .tm{font-size:11.5px;color:var(--ink-soft)}
+  .wempty{padding:13px;text-align:center;color:var(--ink-faint);font-size:12.5px;font-style:italic}
+
+  .empty{text-align:center;padding:50px 20px;color:var(--ink-faint);border:1.5px dashed var(--line);border-radius:var(--radius)}
+  .empty .ic{font-size:32px;opacity:.5;margin-bottom:10px}
+  .empty p{font-size:14px;margin-bottom:14px}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(5,8,12,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:30px 16px;z-index:100;overflow-y:auto}
+  .overlay.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:100%;max-width:440px;padding:22px;animation:pop .2s ease}
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+  .modal h3{font-size:16px;margin-bottom:6px;display:flex;align-items:center;gap:9px}
+  .modal h3 .dot{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .modal .msub{font-size:12.5px;color:var(--ink-soft);margin-bottom:16px}
+  .field{margin-bottom:13px}
+  .field label{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+  .field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--ink);font-size:16px;font-family:inherit}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .vac-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:7px;max-height:230px;overflow-y:auto;padding:3px}
+  .vp{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 4px;text-align:center;cursor:pointer}
+  .vp:hover{border-color:var(--accent)}
+  .vp.sel{border-color:var(--accent);background:rgba(245,166,35,.12)}
+  .vp .c{font-weight:800;font-size:13px}
+  .vp.jour .c{color:#9ec5ff}.vp.nuit .c{color:#c4b3ff}.vp.cp .c{color:#86e29a}
+  .vp .t{font-size:9.5px;color:var(--ink-faint);margin-top:2px}
+  .modal-actions{display:flex;gap:10px;justify-content:space-between;margin-top:20px}
+  .modal-actions .right{display:flex;gap:10px}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--ok);padding:12px 18px;border-radius:9px;font-size:13.5px;font-weight:600;transition:transform .3s ease;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+  .hint{font-size:12px;color:var(--ink-faint);margin-top:12px;line-height:1.6}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:11.5px;color:var(--ink-soft)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  .desktop-only{display:none}
+  @media(min-width:880px){
+    .desktop-only{display:block}
+    .mobile-only{display:none}
+  }
+  @media(max-width:879px){
+    .desktop-only{display:none}
+    .row-2{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"></div>
+  <div>
+    <h1>TEAM <span>SÉCURITÉ</span></h1>
+    <div class="sub">Planning &amp; pointage</div>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-view="planning">Planning</button>
+  <button data-view="vacations">Vacations</button>
+</nav>
+
+<main>
+  <!-- PLANNING -->
+  <section id="planning" class="view active">
+    <div class="bar">
+      <div class="period">
+        <button data-act="prev">‹</button>
+        <div class="lbl" id="period-label"></div>
+        <button data-act="next">›</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" data-act="today">Aujourd'hui</button>
+    </div>
+
+    <!-- Desktop: grille mensuelle -->
+    <div class="desktop-only">
+      <div class="pl-scroll" id="plan-month"></div>
+      <div class="legend">
+        <span><i style="background:rgba(59,130,246,.5)"></i> Vacation jour</span>
+        <span><i style="background:rgba(124,92,255,.5)"></i> Vacation nuit</span>
+        <span><i style="background:rgba(63,185,80,.5)"></i> Congés payés</span>
+      </div>
+    </div>
+
+    <!-- Mobile: vue semaine -->
+    <div class="mobile-only">
+      <div class="week" id="plan-week"></div>
+    </div>
+  </section>
+
+  <!-- VACATIONS -->
+  <section id="vacations" class="view">
+    <div class="bar">
+      <h2>Bibliothèque de vacations</h2>
+      <button class="btn" data-act="add-vac">+ Nouvelle vacation</button>
+    </div>
+    <div class="vac-grid" id="vac-list"></div>
+    <div class="hint">Les codes (J01, N01, CP…) sont issus de ton planning Comète. Affecte-les aux agents dans l'onglet Planning — les horaires et le calcul jour/nuit se font automatiquement.</div>
+  </section>
+
+  <div class="hint" style="text-align:center;margin-top:24px">Module 2 — Planning &amp; pointage · données enregistrées sur cet appareil (base partagée à brancher)</div>
+</main>
+
+<!-- Modal affectation -->
+<div class="overlay" id="ov-assign">
+  <div class="modal">
+    <h3><span class="dot"></span>Affecter une vacation</h3>
+    <div class="msub" id="assign-sub"></div>
+    <div class="field">
+      <label>Agent</label>
+      <select id="as-agent"></select>
+    </div>
+    <div class="field">
+      <label>Vacation</label>
+      <div class="vac-pick" id="as-vacpick"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" data-act="assign-clear">Vider la case</button>
+      <div class="right">
+        <button class="btn btn-ghost" data-act="close">Annuler</button>
+        <button class="btn" data-act="assign-save">Affecter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal vacation -->
+<div class="overlay" id="ov-vac">
+  <div class="modal">
+    <h3><span class="dot"></span><span id="vac-title">Nouvelle vacation</span></h3>
+    <div class="msub">Définis un poste type avec ses horaires.</div>
+    <input type="hidden" id="v-id">
+    <div class="row-2">
+      <div class="field"><label>Code</label><input id="v-code" placeholder="J05 / N02 / CP" maxlength="4"></div>
+      <div class="field"><label>Type</label>
+        <select id="v-type"><option value="jour">Jour</option><option value="nuit">Nuit</option><option value="cp">Congé / Indispo</option></select></div>
+    </div>
+    <div class="field"><label>Libellé du poste</label><input id="v-lib" placeholder="Agent arrière caisse Carrefour"></div>
+    <div class="field"><label>Activité</label><input id="v-act" placeholder="ADS / SSIAP 1 / SSIAP 2"></div>
+    <div class="row-2" id="v-times">
+      <div class="field"><label>Heure début</label><input id="v-debut" type="time"></div>
+      <div class="field"><label>Heure fin</label><input id="v-fin" type="time"></div>
+    </div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="right">
+        <button class="btn btn-ghost" data-act="close">Annuler</button>
+        <button class="btn" data-act="vac-save">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  function $(id){ return document.getElementById(id); }
+  function load(k,def){ try{ var v=JSON.parse(localStorage.getItem('ats_'+k)); return v==null?def:v; }catch(e){ return def; } }
+  function save(k,v){ try{ localStorage.setItem('ats_'+k, JSON.stringify(v)); }catch(e){} }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+  function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function toast(m){ var t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2200); }
+
+  /* ---- Données partagées avec le module 1 (mêmes clés localStorage) ---- */
+  var agents = load('agents',[]);
+
+  /* ---- Vacations : pré-chargées depuis le planning Comète La Coupole ---- */
+  var DEFAULT_VACS = [
+    {id:'j01',code:'J01',type:'jour',lib:'Agent ouverture SSIAP 1',act:'ADS-SSIAP 1',debut:'04:30',fin:'08:30'},
+    {id:'j02',code:'J02',type:'jour',lib:'Agent matin Coupole',act:'ADS',debut:'08:15',fin:'14:15'},
+    {id:'j03',code:'J03',type:'jour',lib:'Agent PC incendie SSIAP 2',act:'SSIAP 2',debut:'08:30',fin:'20:45'},
+    {id:'j04',code:'J04',type:'jour',lib:'Agent galerie après-midi',act:'ADS',debut:'13:30',fin:'20:45'},
+    {id:'j05',code:'J05',type:'jour',lib:'Agent arrière caisse Carrefour',act:'ADS',debut:'15:45',fin:'21:00'},
+    {id:'j06',code:'J06',type:'jour',lib:'Agent renfort Coupole',act:'ADS',debut:'16:30',fin:'20:45'},
+    {id:'j07',code:'J07',type:'jour',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'11:30',fin:'20:30'},
+    {id:'j08',code:'J08',type:'jour',lib:'Agent ouverture SSIAP 1',act:'ADS-SSIAP 1',debut:'04:30',fin:'08:15'},
+    {id:'j09',code:'J09',type:'jour',lib:'Agent PC incendie SSIAP 2',act:'SSIAP 2',debut:'08:15',fin:'20:45'},
+    {id:'n01',code:'N01',type:'nuit',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'20:45',fin:'04:30'},
+    {id:'n02',code:'N02',type:'nuit',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'20:45',fin:'11:30'},
+    {id:'n03',code:'N03',type:'nuit',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'20:30',fin:'04:30'},
+    {id:'n04',code:'N04',type:'nuit',lib:'Surveillance exceptionnelle SSIAP',act:'ADS-SSIAP 1',debut:'21:00',fin:'04:30'},
+    {id:'cp', code:'CP', type:'cp',  lib:'Congés payés',act:'',debut:'',fin:''}
+  ];
+  var vacs = load('vacations', null);
+  if(vacs==null){ vacs = DEFAULT_VACS.slice(); save('vacations',vacs); }
+
+  /* ---- Planning : { "YYYY-MM-DD|agentId": vacId } ---- */
+  var planning = load('planning', {});
+
+  /* ---- Helpers date ---- */
+  var MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  var JOURS=['dim','lun','mar','mer','jeu','ven','sam'];
+  var cursor = new Date(); cursor.setHours(0,0,0,0);
+  function pad(n){ return n<10?'0'+n:''+n; }
+  function ymd(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function isWE(d){ var g=d.getDay(); return g===0||g===6; }
+  function vacById(id){ for(var i=0;i<vacs.length;i++) if(vacs[i].id===id) return vacs[i]; return null; }
+  function agentById(id){ for(var i=0;i<agents.length;i++) if(agents[i].id===id) return agents[i]; return null; }
+  function agentLabel(a){ return a.prenom+' '+a.nom; }
+
+  /* ---- Calcul durée d'une vacation (gère passage minuit) ---- */
+  function vacHours(v){
+    if(!v||!v.debut||!v.fin) return 0;
+    var d=v.debut.split(':'), f=v.fin.split(':');
+    var m1=(+d[0])*60+(+d[1]), m2=(+f[0])*60+(+f[1]);
+    if(m2<=m1) m2+=1440;
+    return (m2-m1)/60;
+  }
+  function fmtH(h){ if(!h) return '0'; return (Math.round(h*100)/100).toString().replace('.',',')+'h'; }
+
+  /* ---- Navigation onglets ---- */
+  var navBtns=document.querySelectorAll('nav button');
+  for(var i=0;i<navBtns.length;i++){
+    navBtns[i].addEventListener('click',function(){
+      for(var j=0;j<navBtns.length;j++) navBtns[j].classList.remove('active');
+      var vs=document.querySelectorAll('.view'); for(var k=0;k<vs.length;k++) vs[k].classList.remove('active');
+      this.classList.add('active'); $(this.getAttribute('data-view')).classList.add('active');
+    });
+  }
+
+  /* ================= VACATIONS ================= */
+  function renderVacs(){
+    var el=$('vac-list');
+    if(!vacs.length){ el.innerHTML='<div class="empty"><div class="ic">🕐</div><p>Aucune vacation</p></div>'; return; }
+    var h='';
+    for(var i=0;i<vacs.length;i++){ var v=vacs[i];
+      var cls=v.type==='nuit'?'nuit':(v.type==='cp'?'cp':'jour');
+      h+='<div class="vac '+cls+'">'+
+         '<div class="vac-actions">'+
+           '<button class="icon-btn" data-act="edit-vac" data-id="'+v.id+'">✎</button>'+
+           '<button class="icon-btn del" data-act="del-vac" data-id="'+v.id+'">🗑</button>'+
+         '</div>'+
+         '<div class="code">'+esc(v.code)+'</div>'+
+         '<div class="lib">'+esc(v.lib)+'</div>'+
+         (v.debut?'<div class="time">'+v.debut+' → '+v.fin+'</div>':'<div class="time" style="color:var(--cp)">Indisponibilité</div>')+
+         (v.act?'<div class="acts">'+esc(v.act)+'</div>':'')+
+         (v.debut?'<div class="badge-hours">'+fmtH(vacHours(v))+'</div>':'')+
+         '</div>';
+    }
+    el.innerHTML=h;
+  }
+
+  function openVac(id){
+    var v=id?vacById(id):null;
+    $('vac-title').textContent=v?'Modifier vacation':'Nouvelle vacation';
+    $('v-id').value=v?v.id:'';
+    $('v-code').value=v?v.code:''; $('v-type').value=v?v.type:'jour';
+    $('v-lib').value=v?v.lib:''; $('v-act').value=v?v.act:'';
+    $('v-debut').value=v?v.debut:''; $('v-fin').value=v?v.fin:'';
+    $('ov-vac').classList.add('open');
+  }
+  function saveVac(){
+    var code=$('v-code').value.trim().toUpperCase();
+    if(!code){ toast('Code requis'); return; }
+    var type=$('v-type').value;
+    var o={ id:$('v-id').value||uid(), code:code, type:type, lib:$('v-lib').value.trim(),
+            act:$('v-act').value.trim(), debut:type==='cp'?'':$('v-debut').value, fin:type==='cp'?'':$('v-fin').value };
+    var found=false;
+    for(var i=0;i<vacs.length;i++) if(vacs[i].id===o.id){ vacs[i]=o; found=true; }
+    if(!found) vacs.push(o);
+    save('vacations',vacs); renderVacs(); closeAll(); toast('Vacation enregistrée');
+  }
+  function delVac(id){
+    if(!confirm('Supprimer cette vacation ?')) return;
+    vacs=vacs.filter(function(x){return x.id!==id;}); save('vacations',vacs); renderVacs(); toast('Vacation supprimée');
+  }
+
+  /* ================= PLANNING : période ================= */
+  function periodLabel(){
+    if(isMobile()){
+      var ws=weekStart(cursor); var we=new Date(ws); we.setDate(ws.getDate()+6);
+      return ws.getDate()+' '+MOIS[ws.getMonth()].slice(0,4)+'. → '+we.getDate()+' '+MOIS[we.getMonth()].slice(0,4)+'.';
+    }
+    return MOIS[cursor.getMonth()].charAt(0).toUpperCase()+MOIS[cursor.getMonth()].slice(1)+' '+cursor.getFullYear();
+  }
+  function isMobile(){ return window.matchMedia('(max-width:879px)').matches; }
+  function weekStart(d){ var x=new Date(d); var g=(x.getDay()+6)%7; x.setDate(x.getDate()-g); x.setHours(0,0,0,0); return x; }
+
+  function shift(dir){
+    if(isMobile()) cursor.setDate(cursor.getDate()+dir*7);
+    else cursor.setMonth(cursor.getMonth()+dir);
+    renderPlanning();
+  }
+  function goToday(){ cursor=new Date(); renderPlanning(); }
+
+  /* ---- Grille mensuelle (desktop) ---- */
+  function renderMonth(){
+    var y=cursor.getFullYear(), m=cursor.getMonth();
+    var days=new Date(y,m+1,0).getDate();
+    var actifs=agents;
+    if(!actifs.length){ $('plan-month').innerHTML='<div class="empty" style="border:none"><div class="ic">👮</div><p>Aucun agent. Crée des agents dans le module 1 d\'abord.</p></div>'; return; }
+
+    var head='<tr><th class="agent-col">Agent</th>';
+    for(var d=1;d<=days;d++){ var dt=new Date(y,m,d); var we=isWE(dt)?' we':'';
+      head+='<th class="'+we.trim()+'">'+JOURS[dt.getDay()].charAt(0).toUpperCase()+'<br>'+pad(d)+'</th>'; }
+    head+='<th class="tot-col">Tot.</th></tr>';
+
+    var dayTot={}; for(var d=1;d<=days;d++) dayTot[d]=0;
+    var body='';
+    for(var a=0;a<actifs.length;a++){ var ag=actifs[a]; var rowTot=0;
+      body+='<tr><td class="agent-col">'+esc(agentLabel(ag))+'</td>';
+      for(var d=1;d<=days;d++){ var dt=new Date(y,m,d); var key=ymd(dt)+'|'+ag.id; var vid=planning[key];
+        var we=isWE(dt)?' we':'';
+        if(vid){ var v=vacById(vid);
+          if(v){ var cls=v.type==='nuit'?'nuit':(v.type==='cp'?'cp':'jour');
+            body+='<td class="'+we.trim()+'" data-day="'+d+'" data-agent="'+ag.id+'"><div class="cell-code '+cls+'">'+esc(v.code)+'</div></td>';
+            var hh=vacHours(v); rowTot+=hh; dayTot[d]+=hh;
+          } else { body+='<td class="'+we.trim()+'" data-day="'+d+'" data-agent="'+ag.id+'"></td>'; }
+        } else { body+='<td class="'+we.trim()+'" data-day="'+d+'" data-agent="'+ag.id+'"></td>'; }
+      }
+      body+='<td class="tot-col">'+(Math.round(rowTot*10)/10)+'</td></tr>';
+    }
+    var foot='<tr><td class="agent-col">Total / jour</td>';
+    var grand=0;
+    for(var d=1;d<=days;d++){ foot+='<td>'+(Math.round(dayTot[d]*10)/10||'')+'</td>'; grand+=dayTot[d]; }
+    foot+='<td class="tot-col">'+(Math.round(grand*10)/10)+'</td></tr>';
+
+    $('plan-month').innerHTML='<table class="plan"><thead>'+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table>';
+  }
+
+  /* ---- Vue semaine (mobile) ---- */
+  function renderWeek(){
+    var ws=weekStart(cursor);
+    if(!agents.length){ $('plan-week').innerHTML='<div class="empty"><div class="ic">👮</div><p>Aucun agent. Crée des agents dans le module 1 d\'abord.</p></div>'; return; }
+    var h='';
+    for(var i=0;i<7;i++){ var dt=new Date(ws); dt.setDate(ws.getDate()+i);
+      var we=isWE(dt)?' we':''; var dayKey=ymd(dt); var dayTot=0; var slots='';
+      for(var a=0;a<agents.length;a++){ var ag=agents[a]; var vid=planning[dayKey+'|'+ag.id];
+        if(vid){ var v=vacById(vid); if(v){ var cls=v.type==='nuit'?'nuit':(v.type==='cp'?'cp':'jour');
+          slots+='<div class="wslot"><div class="ag">'+esc(agentLabel(ag))+'</div>'+
+                 (v.debut?'<div class="tm">'+v.debut+'-'+v.fin+'</div>':'')+
+                 '<div class="cd '+cls+'">'+esc(v.code)+'</div></div>';
+          dayTot+=vacHours(v);
+        }}
+      }
+      h+='<div class="wday'+we+'" data-date="'+dayKey+'">'+
+         '<div class="wday-head"><div class="d">'+JOURS[dt.getDay()].charAt(0).toUpperCase()+JOURS[dt.getDay()].slice(1)+' <span>'+dt.getDate()+' '+MOIS[dt.getMonth()].slice(0,4)+'.</span></div>'+
+         '<div class="h">'+(dayTot?fmtH(dayTot):'')+'</div></div>'+
+         (slots||'<div class="wempty">Aucune affectation — touchez pour ajouter</div>')+
+         '</div>';
+    }
+    $('plan-week').innerHTML=h;
+  }
+
+  function renderPlanning(){
+    $('period-label').textContent=periodLabel();
+    if(isMobile()) renderWeek(); else renderMonth();
+  }
+
+  /* ================= AFFECTATION ================= */
+  var assignCtx={date:null,agentId:null};
+  function openAssign(dateStr,agentId){
+    if(!agents.length){ toast('Crée des agents d\'abord (module 1)'); return; }
+    assignCtx.date=dateStr; assignCtx.agentId=agentId||'';
+    var dt=new Date(dateStr+'T00:00:00');
+    $('assign-sub').textContent=JOURS[dt.getDay()].charAt(0).toUpperCase()+JOURS[dt.getDay()].slice(1)+' '+dt.getDate()+' '+MOIS[dt.getMonth()]+' '+dt.getFullYear();
+    // agents
+    var asel=$('as-agent'); var ah='';
+    for(var i=0;i<agents.length;i++) ah+='<option value="'+agents[i].id+'"'+(agents[i].id===assignCtx.agentId?' selected':'')+'>'+esc(agentLabel(agents[i]))+'</option>';
+    asel.innerHTML=ah;
+    // vac picker
+    renderVacPicker(planning[dateStr+'|'+(assignCtx.agentId||asel.value)]);
+    $('ov-assign').classList.add('open');
+  }
+  var pickedVac=null;
+  function renderVacPicker(selId){
+    pickedVac=selId||null;
+    var h=''; 
+    for(var i=0;i<vacs.length;i++){ var v=vacs[i]; var cls=v.type==='nuit'?'nuit':(v.type==='cp'?'cp':'jour');
+      h+='<div class="vp '+cls+(v.id===pickedVac?' sel':'')+'" data-act="pick-vac" data-id="'+v.id+'">'+
+         '<div class="c">'+esc(v.code)+'</div><div class="t">'+(v.debut?v.debut:'—')+'</div></div>';
+    }
+    $('as-vacpick').innerHTML=h;
+  }
+  function saveAssign(){
+    var agentId=$('as-agent').value;
+    var key=assignCtx.date+'|'+agentId;
+    if(pickedVac){ planning[key]=pickedVac; } else { delete planning[key]; }
+    save('planning',planning); closeAll(); renderPlanning(); toast('Planning mis à jour');
+  }
+  function clearAssign(){
+    var agentId=$('as-agent').value;
+    delete planning[assignCtx.date+'|'+agentId];
+    save('planning',planning); closeAll(); renderPlanning(); toast('Case vidée');
+  }
+
+  /* ================= Événements ================= */
+  function closeAll(){ var ovs=document.querySelectorAll('.overlay'); for(var i=0;i<ovs.length;i++) ovs[i].classList.remove('open'); }
+
+  document.addEventListener('click',function(e){
+    var t=e.target.closest ? e.target.closest('[data-act]') : null;
+    // clic sur cellule planning (desktop)
+    if(!t){
+      var cell=e.target.closest ? e.target.closest('td[data-day]') : null;
+      if(cell){ var d=cell.getAttribute('data-day'); var ag=cell.getAttribute('data-agent');
+        var dt=new Date(cursor.getFullYear(),cursor.getMonth(),+d); openAssign(ymd(dt),ag); return; }
+      var wd=e.target.closest ? e.target.closest('.wday[data-date]') : null;
+      if(wd){ openAssign(wd.getAttribute('data-date'),''); return; }
+      return;
+    }
+    var act=t.getAttribute('data-act'); var id=t.getAttribute('data-id');
+    if(act==='prev') shift(-1);
+    else if(act==='next') shift(1);
+    else if(act==='today') goToday();
+    else if(act==='add-vac') openVac();
+    else if(act==='edit-vac') openVac(id);
+    else if(act==='del-vac') delVac(id);
+    else if(act==='vac-save') saveVac();
+    else if(act==='assign-save') saveAssign();
+    else if(act==='assign-clear') clearAssign();
+    else if(act==='pick-vac'){ pickedVac=(pickedVac===id?null:id); renderVacPicker(pickedVac); }
+    else if(act==='close') closeAll();
+  });
+  $('as-agent') && $('as-agent').addEventListener('change',function(){
+    renderVacPicker(planning[assignCtx.date+'|'+this.value]);
+  });
+  $('v-type') && $('v-type').addEventListener('change',function(){
+    $('v-times').style.display=this.value==='cp'?'none':'grid';
+  });
+  document.querySelectorAll('.overlay').forEach(function(ov){ ov.addEventListener('click',function(e){ if(e.target===ov) closeAll(); }); });
+  window.addEventListener('resize',function(){ renderPlanning(); });
+
+  /* ---- Init ---- */
+  renderVacs(); renderPlanning();
+})();
+</script>
+</body>
+</html>
