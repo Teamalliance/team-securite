@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Sécurité — Gestion</title>
+<style>
+  :root{
+    --bg:#0f1419;--panel:#161d26;--panel-2:#1d2530;--line:#2a3441;
+    --ink:#e8edf2;--ink-soft:#94a3b4;--ink-faint:#5f6e7e;
+    --accent:#f5a623;--accent-deep:#c97f0a;--ok:#3fb950;--danger:#f0566d;
+    --cdi:#3b82f6;--cdd:#a855f7;--radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  header{background:linear-gradient(180deg,#1a222d,#11161d);border-bottom:2px solid var(--accent);padding:14px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:50}
+  .logo{width:38px;height:38px;border-radius:8px;background:repeating-linear-gradient(45deg,var(--accent) 0 8px,#11161d 8px 16px);flex:none;border:1px solid var(--accent-deep)}
+  header h1{font-size:17px;letter-spacing:.5px;font-weight:700}
+  header h1 span{color:var(--accent);font-weight:800}
+  header .sub{font-size:11px;color:var(--ink-faint);letter-spacing:1.5px;text-transform:uppercase}
+  nav{display:flex;gap:2px;background:var(--panel);padding:0 22px;border-bottom:1px solid var(--line);position:sticky;top:67px;z-index:40;overflow-x:auto}
+  nav button{background:none;border:none;color:var(--ink-soft);padding:13px 18px;font-size:13.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+  nav button:hover{color:var(--ink)}
+  nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  main{max-width:1100px;margin:0 auto;padding:26px 22px 80px}
+  .view{display:none}
+  .view.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .head-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+  .head-row h2{font-size:20px;font-weight:700}
+  .head-row .count{color:var(--ink-faint);font-size:13px;font-weight:500;margin-left:8px}
+  .btn{background:var(--accent);color:#1a1206;border:none;padding:10px 16px;border-radius:8px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{background:#ffb733}
+  .btn-ghost{background:var(--panel-2);color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{background:var(--line)}
+  .grid{display:grid;gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;display:flex;align-items:flex-start;gap:14px}
+  .card .av{width:42px;height:42px;border-radius:9px;flex:none;background:var(--panel-2);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--accent);font-size:15px;border:1px solid var(--line)}
+  .card .body{flex:1;min-width:0}
+  .card .body .name{font-weight:700;font-size:15px}
+  .card .body .meta{color:var(--ink-soft);font-size:12.5px;margin-top:3px}
+  .card .actions{display:flex;gap:6px;flex:none}
+  .icon-btn{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-soft);width:32px;height:32px;border-radius:7px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .icon-btn:hover{color:var(--ink);border-color:var(--ink-faint)}
+  .icon-btn.del:hover{color:var(--danger);border-color:var(--danger)}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+  .tag.cdi{background:rgba(59,130,246,.15);color:#7eb0ff;border:1px solid rgba(59,130,246,.35)}
+  .tag.cdd{background:rgba(168,85,247,.15);color:#c89bf5;border:1px solid rgba(168,85,247,.35)}
+  .tag.off{background:#2a3441;color:#7c8a99}
+  .empty{text-align:center;padding:54px 20px;color:var(--ink-faint);border:1.5px dashed var(--line);border-radius:var(--radius)}
+  .empty .ic{font-size:34px;opacity:.5;margin-bottom:10px}
+  .empty p{font-size:14px;margin-bottom:16px}
+  .overlay{position:fixed;inset:0;background:rgba(5,8,12,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:100;overflow-y:auto}
+  .overlay.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:100%;max-width:460px;padding:24px;animation:pop .2s ease}
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+  .modal h3{font-size:17px;margin-bottom:18px;display:flex;align-items:center;gap:9px}
+  .modal h3 .dot{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+  .field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--ink);font-size:16px;font-family:inherit}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--ok);padding:12px 18px;border-radius:9px;font-size:13.5px;font-weight:600;transition:transform .3s ease;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+  .note{margin-top:22px;font-size:11.5px;color:var(--ink-faint);text-align:center}
+  @media(max-width:520px){.row-2{grid-template-columns:1fr}header h1{font-size:15px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"></div>
+  <div>
+    <h1>TEAM <span>SÉCURITÉ</span></h1>
+    <div class="sub">Gestion des opérations</div>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-view="agents">Agents</button>
+  <button data-view="sites">Sites</button>
+  <button data-view="contrats">Contrats</button>
+</nav>
+
+<main>
+  <section id="agents" class="view active">
+    <div class="head-row">
+      <h2>Agents <span class="count" id="agents-count"></span></h2>
+      <button class="btn" data-act="add-agent">+ Nouvel agent</button>
+    </div>
+    <div class="grid" id="agents-list"></div>
+  </section>
+
+  <section id="sites" class="view">
+    <div class="head-row">
+      <h2>Sites <span class="count" id="sites-count"></span></h2>
+      <button class="btn" data-act="add-site">+ Nouveau site</button>
+    </div>
+    <div class="grid" id="sites-list"></div>
+  </section>
+
+  <section id="contrats" class="view">
+    <div class="head-row">
+      <h2>Contrats <span class="count" id="contrats-count"></span></h2>
+      <button class="btn" data-act="add-contrat">+ Nouveau contrat</button>
+    </div>
+    <div class="grid" id="contrats-list"></div>
+  </section>
+
+  <div class="note">Module 1 — Socle données · Team Sécurité · données enregistrées sur cet appareil</div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal-agent" style="display:none">
+    <h3><span class="dot"></span><span id="agent-title">Nouvel agent</span></h3>
+    <input type="hidden" id="a-id">
+    <div class="row-2">
+      <div class="field"><label>Prénom</label><input id="a-prenom" placeholder="Jean"></div>
+      <div class="field"><label>Nom</label><input id="a-nom" placeholder="Dupont"></div>
+    </div>
+    <div class="field"><label>N° carte pro (CNAPS)</label><input id="a-carte" placeholder="AGD-075-2026-..."></div>
+    <div class="row-2">
+      <div class="field"><label>Téléphone</label><input id="a-tel" placeholder="06 12 34 56 78"></div>
+      <div class="field"><label>Statut</label>
+        <select id="a-statut"><option>Actif</option><option>Inactif</option></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-act="close">Annuler</button>
+      <button class="btn" data-act="save-agent">Enregistrer</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-site" style="display:none">
+    <h3><span class="dot"></span><span id="site-title">Nouveau site</span></h3>
+    <input type="hidden" id="s-id">
+    <div class="field"><label>Nom du site</label><input id="s-nom" placeholder="La Coupole — Limoges"></div>
+    <div class="field"><label>Adresse</label><input id="s-adresse" placeholder="Rue ..., 87000 Limoges"></div>
+    <div class="row-2">
+      <div class="field"><label>Client (donneur d'ordre)</label><input id="s-client" placeholder="SERIS / ALEF"></div>
+      <div class="field"><label>Contact sur site</label><input id="s-contact" placeholder="06 ..."></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-act="close">Annuler</button>
+      <button class="btn" data-act="save-site">Enregistrer</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-contrat" style="display:none">
+    <h3><span class="dot"></span><span id="contrat-title">Nouveau contrat</span></h3>
+    <input type="hidden" id="c-id">
+    <div class="field"><label>Agent</label><select id="c-agent"></select></div>
+    <div class="row-2">
+      <div class="field"><label>Type</label>
+        <select id="c-type"><option value="CDI">CDI</option><option value="CDD">CDD</option></select></div>
+      <div class="field"><label>Taux horaire brut (€)</label><input id="c-taux" type="number" step="0.01" value="12.32"></div>
+    </div>
+    <div class="row-2">
+      <div class="field"><label>Date de début</label><input id="c-debut" type="date"></div>
+      <div class="field"><label>Date de fin (CDD)</label><input id="c-fin" type="date"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-act="close">Annuler</button>
+      <button class="btn" data-act="save-contrat">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  function load(k){ try{ return JSON.parse(localStorage.getItem('ats_'+k)) || []; }catch(e){ return []; } }
+  function save(k,v){ try{ localStorage.setItem('ats_'+k, JSON.stringify(v)); }catch(e){} }
+  var agents   = load('agents');
+  var sites    = load('sites');
+  var contrats = load('contrats');
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function toast(msg){
+    var t=$('toast'); t.textContent=msg; t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); },2200);
+  }
+
+  var overlay=$('overlay');
+  function openModal(id){
+    var ms=document.querySelectorAll('.modal');
+    for(var i=0;i<ms.length;i++) ms[i].style.display='none';
+    $(id).style.display='block';
+    overlay.classList.add('open');
+  }
+  function closeModal(){ overlay.classList.remove('open'); }
+
+  var navBtns=document.querySelectorAll('nav button');
+  for(var i=0;i<navBtns.length;i++){
+    navBtns[i].addEventListener('click',function(){
+      for(var j=0;j<navBtns.length;j++) navBtns[j].classList.remove('active');
+      var views=document.querySelectorAll('.view');
+      for(var k=0;k<views.length;k++) views[k].classList.remove('active');
+      this.classList.add('active');
+      $(this.getAttribute('data-view')).classList.add('active');
+    });
+  }
+
+  function initials(p,n){ return ((p&&p[0]||'')+(n&&n[0]||'')).toUpperCase(); }
+  function fmtDate(d){ if(!d) return ''; var p=d.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+  function agentName(id){ for(var i=0;i<agents.length;i++) if(agents[i].id===id) return agents[i].prenom+' '+agents[i].nom; return 'Agent supprimé'; }
+  function emptyState(ic,txt,act,btn){
+    return '<div class="empty"><div class="ic">'+ic+'</div><p>'+txt+'</p>'+
+           '<button class="btn" data-act="'+act+'">+ '+btn+'</button></div>';
+  }
+
+  function renderAgents(){
+    var el=$('agents-list');
+    $('agents-count').textContent = agents.length ? '· '+agents.length : '';
+    if(!agents.length){ el.innerHTML=emptyState('🛡️','Aucun agent enregistré','add-agent','Ajouter le premier agent'); return; }
+    var h='';
+    for(var i=0;i<agents.length;i++){ var a=agents[i];
+      h+='<div class="card"><div class="av">'+initials(a.prenom,a.nom)+'</div>'+
+         '<div class="body"><div class="name">'+esc(a.prenom)+' '+esc(a.nom)+
+         (a.statut==='Inactif'?' <span class="tag off">Inactif</span>':'')+'</div>'+
+         '<div class="meta">'+(a.carte?'Carte '+esc(a.carte):'<i>carte pro non renseignée</i>')+(a.tel?' · '+esc(a.tel):'')+'</div></div>'+
+         '<div class="actions">'+
+         '<button class="icon-btn" data-act="edit-agent" data-id="'+a.id+'">✎</button>'+
+         '<button class="icon-btn del" data-act="del-agent" data-id="'+a.id+'">🗑</button>'+
+         '</div></div>';
+    }
+    el.innerHTML=h;
+  }
+
+  function renderSites(){
+    var el=$('sites-list');
+    $('sites-count').textContent = sites.length ? '· '+sites.length : '';
+    if(!sites.length){ el.innerHTML=emptyState('📍','Aucun site enregistré','add-site','Ajouter le premier site'); return; }
+    var h='';
+    for(var i=0;i<sites.length;i++){ var s=sites[i];
+      h+='<div class="card"><div class="av">📍</div>'+
+         '<div class="body"><div class="name">'+esc(s.nom)+'</div>'+
+         '<div class="meta">'+(s.adresse?esc(s.adresse):'')+(s.client?' · Client : '+esc(s.client):'')+(s.contact?' · '+esc(s.contact):'')+'</div></div>'+
+         '<div class="actions">'+
+         '<button class="icon-btn" data-act="edit-site" data-id="'+s.id+'">✎</button>'+
+         '<button class="icon-btn del" data-act="del-site" data-id="'+s.id+'">🗑</button>'+
+         '</div></div>';
+    }
+    el.innerHTML=h;
+  }
+
+  function renderContrats(){
+    var el=$('contrats-list');
+    $('contrats-count').textContent = contrats.length ? '· '+contrats.length : '';
+    if(!contrats.length){ el.innerHTML=emptyState('📄','Aucun contrat enregistré','add-contrat','Ajouter le premier contrat'); return; }
+    var h='';
+    for(var i=0;i<contrats.length;i++){ var c=contrats[i];
+      h+='<div class="card"><div class="av">'+c.type+'</div>'+
+         '<div class="body"><div class="name">'+esc(agentName(c.agentId))+
+         ' <span class="tag '+(c.type==='CDI'?'cdi':'cdd')+'">'+c.type+'</span></div>'+
+         '<div class="meta">'+parseFloat(c.taux).toFixed(2)+' €/h · début '+(fmtDate(c.debut)||'—')+
+         (c.type==='CDD'&&c.fin?' → fin '+fmtDate(c.fin):'')+'</div></div>'+
+         '<div class="actions">'+
+         '<button class="icon-btn" data-act="edit-contrat" data-id="'+c.id+'">✎</button>'+
+         '<button class="icon-btn del" data-act="del-contrat" data-id="'+c.id+'">🗑</button>'+
+         '</div></div>';
+    }
+    el.innerHTML=h;
+  }
+
+  function fillAgentOptions(){
+    var sel=$('c-agent');
+    if(!agents.length){ sel.innerHTML='<option value="">— créez d\'abord un agent —</option>'; return; }
+    var h='';
+    for(var i=0;i<agents.length;i++) h+='<option value="'+agents[i].id+'">'+esc(agents[i].prenom)+' '+esc(agents[i].nom)+'</option>';
+    sel.innerHTML=h;
+  }
+
+  function openAgent(id){
+    $('agent-title').textContent = id?'Modifier agent':'Nouvel agent';
+    var a={}; for(var i=0;i<agents.length;i++) if(agents[i].id===id) a=agents[i];
+    $('a-id').value=a.id||''; $('a-prenom').value=a.prenom||''; $('a-nom').value=a.nom||'';
+    $('a-carte').value=a.carte||''; $('a-tel').value=a.tel||''; $('a-statut').value=a.statut||'Actif';
+    openModal('modal-agent');
+  }
+  function openSite(id){
+    $('site-title').textContent = id?'Modifier site':'Nouveau site';
+    var s={}; for(var i=0;i<sites.length;i++) if(sites[i].id===id) s=sites[i];
+    $('s-id').value=s.id||''; $('s-nom').value=s.nom||''; $('s-adresse').value=s.adresse||'';
+    $('s-client').value=s.client||''; $('s-contact').value=s.contact||'';
+    openModal('modal-site');
+  }
+  function openContrat(id){
+    if(!agents.length){ toast('Créez d\'abord un agent'); return; }
+    $('contrat-title').textContent = id?'Modifier contrat':'Nouveau contrat';
+    fillAgentOptions();
+    var c={}; for(var i=0;i<contrats.length;i++) if(contrats[i].id===id) c=contrats[i];
+    $('c-id').value=c.id||''; $('c-agent').value=c.agentId||agents[0].id;
+    $('c-type').value=c.type||'CDI'; $('c-taux').value=c.taux||'12.32';
+    $('c-debut').value=c.debut||''; $('c-fin').value=c.fin||'';
+    openModal('modal-contrat');
+  }
+
+  function saveAgent(){
+    var p=$('a-prenom').value.trim(), n=$('a-nom').value.trim();
+    if(!p||!n){ toast('Prénom et nom requis'); return; }
+    var o={id:$('a-id').value||uid(),prenom:p,nom:n,carte:$('a-carte').value.trim(),tel:$('a-tel').value.trim(),statut:$('a-statut').value};
+    var found=false;
+    for(var i=0;i<agents.length;i++) if(agents[i].id===o.id){ agents[i]=o; found=true; }
+    if(!found) agents.push(o);
+    save('agents',agents); renderAgents(); fillAgentOptions(); closeModal(); toast('Agent enregistré');
+  }
+  function saveSite(){
+    var nom=$('s-nom').value.trim();
+    if(!nom){ toast('Nom du site requis'); return; }
+    var o={id:$('s-id').value||uid(),nom:nom,adresse:$('s-adresse').value.trim(),client:$('s-client').value.trim(),contact:$('s-contact').value.trim()};
+    var found=false;
+    for(var i=0;i<sites.length;i++) if(sites[i].id===o.id){ sites[i]=o; found=true; }
+    if(!found) sites.push(o);
+    save('sites',sites); renderSites(); closeModal(); toast('Site enregistré');
+  }
+  function saveContrat(){
+    var ag=$('c-agent').value;
+    if(!ag){ toast('Sélectionnez un agent'); return; }
+    var o={id:$('c-id').value||uid(),agentId:ag,type:$('c-type').value,taux:$('c-taux').value||'12.32',debut:$('c-debut').value,fin:$('c-fin').value};
+    var found=false;
+    for(var i=0;i<contrats.length;i++) if(contrats[i].id===o.id){ contrats[i]=o; found=true; }
+    if(!found) contrats.push(o);
+    save('contrats',contrats); renderContrats(); closeModal(); toast('Contrat enregistré');
+  }
+
+  function delAgent(id){ if(!confirm('Supprimer cet agent ?')) return; agents=agents.filter(function(x){return x.id!==id;}); save('agents',agents); renderAgents(); fillAgentOptions(); toast('Agent supprimé'); }
+  function delSite(id){ if(!confirm('Supprimer ce site ?')) return; sites=sites.filter(function(x){return x.id!==id;}); save('sites',sites); renderSites(); toast('Site supprimé'); }
+  function delContrat(id){ if(!confirm('Supprimer ce contrat ?')) return; contrats=contrats.filter(function(x){return x.id!==id;}); save('contrats',contrats); renderContrats(); toast('Contrat supprimé'); }
+
+  document.addEventListener('click',function(e){
+    var t=e.target.closest ? e.target.closest('[data-act]') : null;
+    if(!t) return;
+    var act=t.getAttribute('data-act');
+    var id=t.getAttribute('data-id');
+    if(act==='add-agent') openAgent();
+    else if(act==='edit-agent') openAgent(id);
+    else if(act==='del-agent') delAgent(id);
+    else if(act==='add-site') openSite();
+    else if(act==='edit-site') openSite(id);
+    else if(act==='del-site') delSite(id);
+    else if(act==='add-contrat') openContrat();
+    else if(act==='edit-contrat') openContrat(id);
+    else if(act==='del-contrat') delContrat(id);
+    else if(act==='save-agent') saveAgent();
+    else if(act==='save-site') saveSite();
+    else if(act==='save-contrat') saveContrat();
+    else if(act==='close') closeModal();
+  });
+  overlay.addEventListener('click',function(e){ if(e.target===overlay) closeModal(); });
+
+  renderAgents(); renderSites(); renderContrats(); fillAgentOptions();
+})();
+</script>
+</body>
+</html>
