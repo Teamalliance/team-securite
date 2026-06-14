@@ -169,18 +169,21 @@
 
 <div id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   "use strict";
 
-  function load(k){ try{ return JSON.parse(localStorage.getItem('ats_'+k)) || []; }catch(e){ return []; } }
-  function save(k,v){ try{ localStorage.setItem('ats_'+k, JSON.stringify(v)); }catch(e){} }
-  var agents   = load('agents');
-  var sites    = load('sites');
-  var contrats = load('contrats');
-  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  /* ====== Connexion Supabase ====== */
+  var SB_URL = 'https://vympsutcqeyjmtatwyyo.supabase.co';
+  var SB_KEY = 'sb_publishable_tR_1tWd030ZjBSeOBS7QPg_qV8DZ7IA';
+  var db = supabase.createClient(SB_URL, SB_KEY);
+
   function $(id){ return document.getElementById(id); }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
   function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  var agents=[], sites=[], contrats=[];
 
   function toast(msg){
     var t=$('toast'); t.textContent=msg; t.classList.add('show');
@@ -215,6 +218,17 @@
            '<button class="btn" data-act="'+act+'">+ '+btn+'</button></div>';
   }
 
+  /* ====== Chargement depuis Supabase ====== */
+  async function chargerTout(){
+    var ra = await db.from('agents').select('*').order('cree_le');
+    var rs = await db.from('sites').select('*').order('cree_le');
+    var rc = await db.from('contrats').select('*').order('cree_le');
+    agents   = (ra.data||[]).map(function(x){ return {id:x.id,prenom:x.prenom,nom:x.nom,carte:x.carte,tel:x.tel,statut:x.statut}; });
+    sites    = (rs.data||[]).map(function(x){ return {id:x.id,nom:x.nom,adresse:x.adresse,client:x.client,contact:x.contact}; });
+    contrats = (rc.data||[]).map(function(x){ return {id:x.id,agentId:x.agent_id,type:x.type,taux:x.taux,debut:x.debut,fin:x.fin}; });
+    renderAgents(); renderSites(); renderContrats(); fillAgentOptions();
+  }
+
   function renderAgents(){
     var el=$('agents-list');
     $('agents-count').textContent = agents.length ? '· '+agents.length : '';
@@ -232,7 +246,6 @@
     }
     el.innerHTML=h;
   }
-
   function renderSites(){
     var el=$('sites-list');
     $('sites-count').textContent = sites.length ? '· '+sites.length : '';
@@ -249,7 +262,6 @@
     }
     el.innerHTML=h;
   }
-
   function renderContrats(){
     var el=$('contrats-list');
     $('contrats-count').textContent = contrats.length ? '· '+contrats.length : '';
@@ -268,7 +280,6 @@
     }
     el.innerHTML=h;
   }
-
   function fillAgentOptions(){
     var sel=$('c-agent');
     if(!agents.length){ sel.innerHTML='<option value="">— créez d\'abord un agent —</option>'; return; }
@@ -302,43 +313,39 @@
     openModal('modal-contrat');
   }
 
-  function saveAgent(){
+  async function saveAgent(){
     var p=$('a-prenom').value.trim(), n=$('a-nom').value.trim();
     if(!p||!n){ toast('Prénom et nom requis'); return; }
     var o={id:$('a-id').value||uid(),prenom:p,nom:n,carte:$('a-carte').value.trim(),tel:$('a-tel').value.trim(),statut:$('a-statut').value};
-    var found=false;
-    for(var i=0;i<agents.length;i++) if(agents[i].id===o.id){ agents[i]=o; found=true; }
-    if(!found) agents.push(o);
-    save('agents',agents); renderAgents(); fillAgentOptions(); closeModal(); toast('Agent enregistré');
+    var r=await db.from('agents').upsert(o);
+    if(r.error){ toast('Erreur: '+r.error.message); return; }
+    closeModal(); toast('Agent enregistré'); await chargerTout();
   }
-  function saveSite(){
+  async function saveSite(){
     var nom=$('s-nom').value.trim();
     if(!nom){ toast('Nom du site requis'); return; }
     var o={id:$('s-id').value||uid(),nom:nom,adresse:$('s-adresse').value.trim(),client:$('s-client').value.trim(),contact:$('s-contact').value.trim()};
-    var found=false;
-    for(var i=0;i<sites.length;i++) if(sites[i].id===o.id){ sites[i]=o; found=true; }
-    if(!found) sites.push(o);
-    save('sites',sites); renderSites(); closeModal(); toast('Site enregistré');
+    var r=await db.from('sites').upsert(o);
+    if(r.error){ toast('Erreur: '+r.error.message); return; }
+    closeModal(); toast('Site enregistré'); await chargerTout();
   }
-  function saveContrat(){
+  async function saveContrat(){
     var ag=$('c-agent').value;
     if(!ag){ toast('Sélectionnez un agent'); return; }
-    var o={id:$('c-id').value||uid(),agentId:ag,type:$('c-type').value,taux:$('c-taux').value||'12.32',debut:$('c-debut').value,fin:$('c-fin').value};
-    var found=false;
-    for(var i=0;i<contrats.length;i++) if(contrats[i].id===o.id){ contrats[i]=o; found=true; }
-    if(!found) contrats.push(o);
-    save('contrats',contrats); renderContrats(); closeModal(); toast('Contrat enregistré');
+    var o={id:$('c-id').value||uid(),agent_id:ag,type:$('c-type').value,taux:$('c-taux').value||'12.32',debut:$('c-debut').value||null,fin:$('c-fin').value||null};
+    var r=await db.from('contrats').upsert(o);
+    if(r.error){ toast('Erreur: '+r.error.message); return; }
+    closeModal(); toast('Contrat enregistré'); await chargerTout();
   }
 
-  function delAgent(id){ if(!confirm('Supprimer cet agent ?')) return; agents=agents.filter(function(x){return x.id!==id;}); save('agents',agents); renderAgents(); fillAgentOptions(); toast('Agent supprimé'); }
-  function delSite(id){ if(!confirm('Supprimer ce site ?')) return; sites=sites.filter(function(x){return x.id!==id;}); save('sites',sites); renderSites(); toast('Site supprimé'); }
-  function delContrat(id){ if(!confirm('Supprimer ce contrat ?')) return; contrats=contrats.filter(function(x){return x.id!==id;}); save('contrats',contrats); renderContrats(); toast('Contrat supprimé'); }
+  async function delAgent(id){ if(!confirm('Supprimer cet agent ?')) return; await db.from('agents').delete().eq('id',id); toast('Agent supprimé'); await chargerTout(); }
+  async function delSite(id){ if(!confirm('Supprimer ce site ?')) return; await db.from('sites').delete().eq('id',id); toast('Site supprimé'); await chargerTout(); }
+  async function delContrat(id){ if(!confirm('Supprimer ce contrat ?')) return; await db.from('contrats').delete().eq('id',id); toast('Contrat supprimé'); await chargerTout(); }
 
   document.addEventListener('click',function(e){
     var t=e.target.closest ? e.target.closest('[data-act]') : null;
     if(!t) return;
-    var act=t.getAttribute('data-act');
-    var id=t.getAttribute('data-id');
+    var act=t.getAttribute('data-act'); var id=t.getAttribute('data-id');
     if(act==='add-agent') openAgent();
     else if(act==='edit-agent') openAgent(id);
     else if(act==='del-agent') delAgent(id);
@@ -355,7 +362,8 @@
   });
   overlay.addEventListener('click',function(e){ if(e.target===overlay) closeModal(); });
 
-  renderAgents(); renderSites(); renderContrats(); fillAgentOptions();
+  /* ====== Démarrage ====== */
+  chargerTout();
 })();
 </script>
 </body>
