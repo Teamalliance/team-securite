@@ -22,6 +22,8 @@
   nav button{background:none;border:none;color:var(--ink-soft);padding:13px 18px;font-size:13.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
   nav button:hover{color:var(--ink)}
   nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  nav.subnav{position:static;background:var(--bg);padding:4px 22px}
+  nav.subnav button{padding:10px 16px;font-size:12.5px}
   main{max-width:1400px;margin:0 auto;padding:20px 16px 80px}
   .view{display:none}
   .view.active{display:block;animation:fade .25s ease}
@@ -143,10 +145,16 @@
 </header>
 
 <nav>
+  <button onclick="location.href='index.html'">Agents</button>
+  <button class="active" onclick="location.href='planning.html'">Planning</button>
+  <button onclick="location.href='paie.html'">Paie</button>
+  <button onclick="location.href='facturation.html'">Facturation</button>
+</nav>
+
+<nav class="subnav">
   <button class="active" data-view="planning">Planning</button>
   <button data-view="vacations">Vacations</button>
 </nav>
-
 <main>
   <!-- PLANNING -->
   <section id="planning" class="view active">
@@ -258,7 +266,7 @@
 
   function closeAll(){ var ovs=document.querySelectorAll('.overlay'); for(var i=0;i<ovs.length;i++) ovs[i].classList.remove('open'); }
 
-  var navBtns=document.querySelectorAll('nav button');
+ var navBtns=document.querySelectorAll('nav.subnav button');
   for(var i=0;i<navBtns.length;i++){
     navBtns[i].addEventListener('click',function(){
       for(var j=0;j<navBtns.length;j++) navBtns[j].classList.remove('active');
