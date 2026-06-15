@@ -348,7 +348,45 @@
       '</div>'+
       '<div class="inv-pay"><b>Information de paiement</b><br>Instructions : par chèque ou virement</div>';
   }
-
+// ---- Export comptable (CSV) ----
+  function csvNum(x){return (Math.round(x*100)/100).toFixed(2).replace('.',',');}
+  function csvCell(s){s=(s==null?'':String(s)); if(/[";\r\n]/.test(s)){s='"'+s.replace(/"/g,'""')+'"';} return s;}
+  function exportCompta(){
+    var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
+    if(ht<=0){toast('Aucune heure à exporter pour ce mois');return;}
+    var tva=ht*TVA, ttc=ht+tva;
+    var moisLbl=MOIS[cursor.getMonth()]+' '+cursor.getFullYear();
+    var today=new Date();
+    var dExport=('0'+today.getDate()).slice(-2)+'/'+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
+    var SEP=';';
+    var L=[];
+    L.push('TEAM SECURITE - Export comptable');
+    L.push(csvCell('Facture')+SEP+csvCell($('fac-num').value||'-'));
+    L.push(csvCell('Client')+SEP+csvCell($('cli-nom').value||''));
+    L.push(csvCell('N° Commande')+SEP+csvCell($('cli-cmd').value||''));
+    L.push(csvCell('Période')+SEP+csvCell(moisLbl));
+    L.push(csvCell("Date d'export")+SEP+csvCell(dExport));
+    L.push('');
+    L.push(['Article','Prix unitaire HT','Quantité (h)','Montant HT'].map(csvCell).join(SEP));
+    CATS.forEach(function(c){
+      if(qte[c.k]<=0) return;
+      L.push([csvCell(c.lib),csvNum(c.tarif),csvNum(qte[c.k]),csvNum(qte[c.k]*c.tarif)].join(SEP));
+    });
+    L.push('');
+    L.push([csvCell(''),csvCell(''),csvCell('Sous-total HT'),csvNum(ht)].join(SEP));
+    L.push([csvCell(''),csvCell(''),csvCell('TVA 20%'),csvNum(tva)].join(SEP));
+    L.push([csvCell(''),csvCell(''),csvCell('Total TTC'),csvNum(ttc)].join(SEP));
+    var csv='\uFEFF'+L.join('\r\n');
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    var fnum=($('fac-num').value||'sans-num').replace(/[^\w\-]/g,'');
+    var fmois=MOIS[cursor.getMonth()]+'-'+cursor.getFullYear();
+    a.href=url; a.download='compta-'+fnum+'-'+fmois+'.csv';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},120);
+    toast('Export compta téléchargé');
+  }
   document.addEventListener('input',function(e){
     if(e.target.classList.contains('qte')){
       var cat=e.target.getAttribute('data-cat');
