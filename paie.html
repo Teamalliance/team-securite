@@ -116,6 +116,7 @@
         <div class="lbl" id="period-label">—</div>
         <button data-act="next">›</button>
       </div>
+      <button class="btn-ghost btn" data-act="export-compta">⬇ Export compta</button>
       <button class="btn" data-act="print">🖨 Imprimer</button>
     </div>
   </div>
@@ -319,7 +320,42 @@
     $('tbl-wrap').innerHTML='<table class="paie">'+head+body+foot+'</table>';
     $('note').textContent='Module 3 — Paie · Alliance Team Sécurité · calcul automatique depuis le planning (base partagée)';
   }
-
+// ---- Export comptable (CSV) ----
+  function csvNum(x){return (Math.round((x||0)*100)/100).toFixed(2).replace('.',',');}
+  function csvCell(s){s=(s==null?'':String(s)); if(/[";\r\n]/.test(s)){s='"'+s.replace(/"/g,'""')+'"';} return s;}
+  function exportCompta(){
+    if(!agents.length){toast('Aucun agent à exporter');return;}
+    var lignes=calculMois();
+    var tot={normal:0,nuit:0,dim:0,ferie:0,brut:0,total:0};
+    lignes.forEach(function(Lg){var a=Lg.acc;tot.normal+=a.normal;tot.nuit+=a.nuit;tot.dim+=a.dim;tot.ferie+=a.ferie;tot.brut+=a.brut;tot.total+=a.total;});
+    if(tot.total<=0){toast('Aucune heure à exporter pour ce mois');return;}
+    var moisLbl=MOIS[cursor.getMonth()]+' '+cursor.getFullYear();
+    var today=new Date();
+    var dExport=('0'+today.getDate()).slice(-2)+'/'+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
+    var SEP=';';
+    var L=[];
+    L.push('TEAM SECURITE - Export paie comptable');
+    L.push(csvCell('Période')+SEP+csvCell(moisLbl));
+    L.push(csvCell("Date d'export")+SEP+csvCell(dExport));
+    L.push(csvCell('Taux horaire de base')+SEP+csvNum(TAUX));
+    L.push('');
+    L.push(['Agent','Heures normales','Heures nuit','Heures dimanche','Heures férié','Total heures','Brut (€)'].map(csvCell).join(SEP));
+    lignes.forEach(function(Lg){
+      var a=Lg.acc, ag=Lg.agent;
+      L.push([csvCell(ag.prenom+' '+ag.nom),csvNum(a.normal),csvNum(a.nuit),csvNum(a.dim),csvNum(a.ferie),csvNum(a.total),csvNum(a.brut)].join(SEP));
+    });
+    L.push('');
+    L.push([csvCell('TOTAL'),csvNum(tot.normal),csvNum(tot.nuit),csvNum(tot.dim),csvNum(tot.ferie),csvNum(tot.total),csvNum(tot.brut)].join(SEP));
+    var csv='\uFEFF'+L.join('\r\n');
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    var url=URL.createObjectURL(blob);
+    var link=document.createElement('a');
+    var fmois=MOIS[cursor.getMonth()]+'-'+cursor.getFullYear();
+    link.href=url; link.download='paie-'+fmois+'.csv';
+    document.body.appendChild(link); link.click();
+    setTimeout(function(){document.body.removeChild(link);URL.revokeObjectURL(url);},120);
+    toast('Export paie téléchargé');
+  }
   document.addEventListener('click',function(e){
     var t=e.target.closest?e.target.closest('[data-act],[data-exp]'):null;
     if(!t) return;
@@ -328,6 +364,7 @@
     if(act==='prev'){cursor.setMonth(cursor.getMonth()-1);render();}
     else if(act==='next'){cursor.setMonth(cursor.getMonth()+1);render();}
     else if(act==='print'){window.print();}
+    else if(act==='export-compta'){exportCompta();}
   });
 
   chargerTout();
