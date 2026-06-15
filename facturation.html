@@ -126,6 +126,7 @@
         <button data-act="next">›</button>
       </div>
       <button class="btn-ghost btn" data-act="recalc">↻ Recalculer</button>
+      <button class="btn-ghost btn" data-act="export-compta">⬇ Export compta</button>
       <button class="btn" data-act="print">🖨 Éditer la facture</button>
     </div>
   </div>
@@ -371,6 +372,7 @@
     if(act==='prev'){cursor.setMonth(cursor.getMonth()-1);recalc();}
     else if(act==='next'){cursor.setMonth(cursor.getMonth()+1);recalc();}
     else if(act==='recalc'){recalc();toast('Quantités recalculées depuis le planning');}
+      else if(act==='export-compta'){exportCompta();}
     else if(act==='cli-save'){enregistrerClient();}
     else if(act==='cli-del'){supprimerClient();}
     else if(act==='print'){
