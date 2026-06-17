@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Sécurité — Devis</title>
+<style>
+  :root{
+    --bg:#0f1419;--panel:#161d26;--panel-2:#1d2530;--line:#2a3441;
+    --ink:#e8edf2;--ink-soft:#94a3b4;--ink-faint:#5f6e7e;
+    --accent:#f5a623;--accent-deep:#c97f0a;--ok:#3fb950;--danger:#f0566d;--radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  header{background:linear-gradient(180deg,#1a222d,#11161d);border-bottom:2px solid var(--accent);padding:14px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:50}
+  header .sub{font-size:11px;color:var(--ink-faint);letter-spacing:1.5px;text-transform:uppercase}
+  nav{display:flex;gap:2px;background:var(--panel);padding:0 22px;border-bottom:1px solid var(--line);position:sticky;top:95px;z-index:40;overflow-x:auto}
+  nav button{background:none;border:none;color:var(--ink-soft);padding:13px 18px;font-size:13.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+  nav button:hover{color:var(--ink)}
+  nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  main{max-width:1100px;margin:0 auto;padding:20px 16px 80px}
+  .bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+  .bar h2{font-size:19px;font-weight:700}
+  .btn{background:var(--accent);color:#1a1206;border:none;padding:9px 15px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{background:#ffb733}
+  .btn-ghost{background:var(--panel-2);color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{background:var(--line)}
+  .period{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px}
+  .period button{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:16px;font-family:inherit}
+  .period button:hover{border-color:var(--accent);color:var(--accent)}
+  .period .lbl{min-width:150px;text-align:center;font-weight:700;font-size:15px;text-transform:capitalize}
+
+  .info-box{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:12px 14px;font-size:12.5px;color:var(--ink-soft);margin-bottom:18px}
+  .info-box b{color:var(--ink)}
+
+  /* Champs client */
+  .client-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .field label{display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+  .field input{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);padding:9px 11px;border-radius:8px;font-size:14px;font-family:inherit}
+  .field input:focus{outline:none;border-color:var(--accent)}
+  .field select{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);padding:9px 11px;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer}
+  .field select:focus{outline:none;border-color:var(--accent)}
+  .client-bar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+  .client-bar .field{flex:1;min-width:220px;margin:0}
+  .client-bar .btn{height:38px}
+
+  /* Tableau lignes devis */
+  .lines{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;overflow-x:auto;margin-bottom:18px}
+  table.fac{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
+  table.fac th,table.fac td{padding:12px 14px;border-bottom:1px solid var(--line)}
+  table.fac th{background:var(--panel-2);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);font-weight:700;text-align:right}
+  table.fac th:first-child{text-align:left}
+  table.fac td{text-align:right;font-variant-numeric:tabular-nums}
+  table.fac td.lib{text-align:left;font-weight:600}
+  table.fac td.lib small{display:block;font-weight:400;color:var(--ink-faint);font-size:11px}
+  table.fac input.qte{width:80px;background:var(--panel-2);border:1px solid var(--line);color:var(--accent);padding:6px 8px;border-radius:6px;font-size:14px;text-align:right;font-family:inherit;font-weight:700}
+  table.fac input.qte:focus{outline:none;border-color:var(--accent)}
+  table.fac td.montant{font-weight:700}
+  table.fac .auto-badge{font-size:10px;color:var(--ink-faint);margin-left:6px}
+  table.fac tfoot td{background:var(--panel-2);font-weight:700;border-bottom:none}
+
+  /* Totaux */
+  .totaux-fac{display:flex;justify-content:flex-end;margin-bottom:20px}
+  .totaux-fac .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;min-width:300px}
+  .totaux-fac .row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px}
+  .totaux-fac .row.ttc{border-top:2px solid var(--accent-deep);margin-top:8px;padding-top:12px;font-size:20px;font-weight:800;color:var(--accent)}
+  .totaux-fac .row .lbl{color:var(--ink-soft)}
+
+  .empty{text-align:center;padding:50px 20px;color:var(--ink-faint)}
+  .empty .ic{font-size:40px;margin-bottom:10px}
+  .note{text-align:center;color:var(--ink-faint);font-size:11.5px;margin-top:30px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ok);color:#06210d;padding:11px 20px;border-radius:10px;font-weight:700;font-size:13px;opacity:0;transition:.3s;z-index:200}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+  /* ===== Devis imprimable ===== */
+  .invoice{display:none}
+  @media print{
+    header,nav,.bar,.info-box,.client-card,.client-bar,.lines,.totaux-fac,.note,.actions-row{display:none!important}
+    body{background:#fff;color:#000}
+    main{padding:0;max-width:100%}
+    .invoice{display:block!important}
+  }
+  .invoice{background:#fff;color:#1a1a1a;padding:40px;font-size:13px;max-width:800px;margin:0 auto}
+  .inv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:30px}
+  .inv-logo img{height:84px;width:auto;object-fit:contain;display:block}
+  .inv-emit{font-size:12px;line-height:1.6;margin-top:8px}
+  .inv-emit .nom{font-size:20px;font-weight:800;color:#111;margin-bottom:4px}
+  .inv-meta{text-align:right;font-size:12px;line-height:1.7}
+  .inv-meta .big{font-size:22px;font-weight:800;letter-spacing:1px}
+  .inv-meta .lbl{color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-top:8px}
+  .inv-bill{margin:20px 0;font-size:12px;line-height:1.7}
+  .inv-bill .h{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:4px}
+  .inv-bill .who{font-size:15px;font-weight:700}
+  table.inv-lines{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}
+  table.inv-lines th{text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#888;text-align:right;padding:8px 6px;border-bottom:2px solid #ddd}
+  table.inv-lines th:first-child{text-align:left}
+  table.inv-lines td{padding:9px 6px;text-align:right;border-bottom:1px dotted #ccc}
+  table.inv-lines td:first-child{text-align:left}
+  .inv-tot{margin-top:18px;margin-left:auto;width:280px;font-size:13px}
+  .inv-tot .r{display:flex;justify-content:space-between;padding:5px 0}
+  .inv-tot .r.ttc{border-top:2px solid #333;margin-top:6px;padding-top:10px;font-size:17px;font-weight:800}
+  .inv-pay{margin-top:24px;font-size:11px;color:#555}
+  .inv-pay b{color:#222}
+  .inv-rib{margin-top:24px;display:flex;gap:30px;flex-wrap:wrap}
+  .inv-rib .blk{font-size:11.5px;color:#444;line-height:1.7}
+  .inv-rib .blk b{color:#111}
+  .inv-accord{border:1px dashed #bbb;border-radius:6px;padding:10px 12px}
+  .inv-accord .sign{margin-top:34px;border-top:1px solid #ccc;padding-top:4px;font-size:10px;color:#888}
+</style>
+</head>
+<body>
+<header>
+  <!-- ▼ LOGO HEADER : remplace __COLLE_LOGO_HEADER__ par le base64 du logo header de ta facturation.html ▼ -->
+  <img id="logoHeader" src="data:image/png;base64,__COLLE_LOGO_HEADER__" alt="Alliance Team Sécurité" style="height:64px;width:auto;display:block" onerror="this.style.display='none'">
+  <div><div class="sub">Gestion des opérations</div></div>
+</header>
+
+<nav>
+  <button onclick="location.href='index.html'">Agents</button>
+  <button onclick="location.href='planning.html'">Planning</button>
+  <button onclick="location.href='paie.html'">Paie</button>
+  <button onclick="location.href='facturation.html'">Facturation</button>
+  <button class="active">Devis</button>
+</nav>
+
+<main>
+  <div class="bar">
+    <h2>Devis</h2>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap" class="actions-row">
+      <div class="period">
+        <button data-act="prev">‹</button>
+        <div class="lbl" id="period-label">—</div>
+        <button data-act="next">›</button>
+      </div>
+      <button class="btn-ghost btn" data-act="recalc">↻ Importer le planning</button>
+      <button class="btn-ghost btn" data-act="export-compta">⬇ Export</button>
+      <button class="btn" data-act="print">🖨 Éditer le devis</button>
+    </div>
+  </div>
+
+  <div class="info-box">
+    Les heures sont <b>pré-remplies automatiquement</b> depuis le planning du mois (ventilées sur les 6 catégories SERIS),
+    mais tu peux <b>saisir / ajuster chaque quantité à la main</b> pour un devis prévisionnel.
+    Le devis est <b>valable 30 jours</b> et porte le RIB + la mention « Bon pour accord ».
+  </div>
+
+  <div class="client-bar">
+    <div class="field">
+      <label>Client</label>
+      <select id="cli-select"><option value="__new__">➕ Nouveau client…</option></select>
+    </div>
+    <button class="btn" data-act="cli-save" type="button">💾 Enregistrer</button>
+    <button class="btn-ghost btn" data-act="cli-del" type="button" title="Supprimer ce client">🗑</button>
+  </div>
+
+  <div class="client-card">
+    <div class="field"><label>Nom du client</label><input id="cli-nom" value="SERIS SECURITY"></div>
+    <div class="field"><label>N° de commande</label><input id="cli-cmd" placeholder="ex : 20260650066"></div>
+    <div class="field"><label>Email client</label><input id="cli-mail" value="jtourret@seris.fr"></div>
+    <div class="field"><label>N° de devis</label><input id="dev-num" placeholder="ex : DEV-2026-001" value="DEV-2026-001"></div>
+  </div>
+
+  <div class="lines" id="lines"></div>
+
+  <div class="totaux-fac">
+    <div class="box">
+      <div class="row"><span class="lbl">Sous-total HT</span><span id="t-ht">0,00 €</span></div>
+      <div class="row"><span class="lbl">TVA (20%)</span><span id="t-tva">0,00 €</span></div>
+      <div class="row ttc"><span>Total TTC</span><span id="t-ttc">0,00 €</span></div>
+    </div>
+  </div>
+
+  <div class="note" id="note"></div>
+</main>
+
+<!-- Devis imprimable -->
+<div class="invoice" id="invoice"></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  "use strict";
+  var SB_URL='https://vympsutcqeyjmtatwyyo.supabase.co';
+  var SB_KEY='sb_publishable_tR_1tWd030ZjBSeOBS7QPg_qV8DZ7IA';
+  var db=supabase.createClient(SB_URL,SB_KEY);
+
+  function $(id){return document.getElementById(id);}
+  function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function toast(m){var t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2200);}
+  function eur(x){return (Math.round(x*100)/100).toFixed(2).replace('.',',')+' €';}
+  function r2(x){return Math.round(x*100)/100;}
+
+  var MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  var TVA=0.20;
+  var VALIDITE_JOURS=30;
+
+  // 6 catégories SERIS
+  var CATS=[
+    {k:'jo',lib:'Présence ADS Jour Ouvré',  tarif:20.30},
+    {k:'no',lib:'Présence ADS Nuit Ouvré',  tarif:22.33},
+    {k:'dj',lib:'Présence ADS Dimanche Jour',tarif:22.55},
+    {k:'dn',lib:'Présence ADS Dimanche Nuit',tarif:24.60},
+    {k:'fj',lib:'Présence ADS Jour Férié',   tarif:41.00},
+    {k:'fn',lib:'Présence ADS Nuit Férié',   tarif:43.05}
+  ];
+
+  function feriesAnnee(y){
+    var a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),
+        g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+        l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+        mois=Math.floor((h+l-7*m+114)/31),jour=((h+l-7*m+114)%31)+1;
+    var paques=new Date(y,mois-1,jour);
+    function add(date,n){var x=new Date(date);x.setDate(x.getDate()+n);return x;}
+    function key(date){return ('0'+(date.getMonth()+1)).slice(-2)+'-'+('0'+date.getDate()).slice(-2);}
+    var set={};
+    ['01-01','05-01','05-08','07-14','08-15','11-01','11-11','12-25'].forEach(function(d){set[d]=1;});
+    set[key(add(paques,1))]=1; set[key(add(paques,39))]=1; set[key(add(paques,50))]=1;
+    return set;
+  }
+
+  var agents=[], vacs=[], planning={}, feries={};
+  var cursor=new Date(); cursor.setDate(1); cursor.setHours(0,0,0,0);
+  var qte={jo:0,no:0,dj:0,dn:0,fj:0,fn:0};
+  var manualEdit=false; // si l'utilisateur a touché les quantités
+
+  function vacById(id){for(var i=0;i<vacs.length;i++) if(vacs[i].id===id) return vacs[i];return null;}
+
+  function ventiler6(dateStr,vac){
+    var r={jo:0,no:0,dj:0,dn:0,fj:0,fn:0};
+    if(!vac||!vac.debut||!vac.fin) return r;
+    var d=vac.debut.split(':'),f=vac.fin.split(':');
+    var start=(+d[0])*60+(+d[1]),end=(+f[0])*60+(+f[1]);
+    if(end<=start)end+=1440;
+    var base=new Date(dateStr+'T00:00:00');
+    for(var min=start;min<end;min++){
+      var cur=new Date(base.getTime()+min*60000);
+      var h=cur.getHours();
+      var isNuit=(h>=22||h<6);
+      var isDim=(cur.getDay()===0);
+      var mmdd=('0'+(cur.getMonth()+1)).slice(-2)+'-'+('0'+cur.getDate()).slice(-2);
+      var isFerie=!!feries[mmdd];
+      var cat;
+      if(isFerie) cat=isNuit?'fn':'fj';
+      else if(isDim) cat=isNuit?'dn':'dj';
+      else cat=isNuit?'no':'jo';
+      r[cat]+=1/60;
+    }
+    return r;
+  }
+
+  async function chargerTout(){
+    render(); // affiche tout de suite le mois, même avant les données
+    try{
+      var ra=await db.from('agents').select('*');
+      var rv=await db.from('vacations').select('*');
+      var rp=await db.from('planning').select('*');
+      agents=(ra.data||[]);
+      vacs=(rv.data||[]).map(function(x){return {id:x.id,code:x.code,type:x.type,debut:x.debut,fin:x.fin};});
+      planning={};
+      (rp.data||[]).forEach(function(x){ if(x.vac_id) planning[x.cle]=x.vac_id; });
+      recalc();
+    }catch(err){
+      toast('Connexion en cours… réessaie Importer le planning');
+      render();
+    }
+  }
+
+  function recalc(){
+    var y=cursor.getFullYear(), m=cursor.getMonth();
+    feries=feriesAnnee(y);
+    var days=new Date(y,m+1,0).getDate();
+    var tot={jo:0,no:0,dj:0,dn:0,fj:0,fn:0};
+    for(var a=0;a<agents.length;a++){
+      for(var dd=1;dd<=days;dd++){
+        var dateStr=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+dd).slice(-2);
+        var vid=planning[dateStr+'|'+agents[a].id];
+        if(!vid) continue;
+        var v=vacById(vid);
+        if(!v||v.type==='cp'||!v.debut) continue;
+        var r=ventiler6(dateStr,v);
+        for(var k in tot) tot[k]+=r[k];
+      }
+    }
+    for(var k in tot) qte[k]=r2(tot[k]);
+    manualEdit=false;
+    render();
+  }
+
+  function render(){
+    var lbl=MOIS[cursor.getMonth()]+' '+cursor.getFullYear();
+    $('period-label').textContent=lbl;
+
+    var rows='';
+    CATS.forEach(function(c){
+      var montant=qte[c.k]*c.tarif;
+      rows+='<tr>'+
+        '<td class="lib">'+c.lib+'<small>'+eur(c.tarif)+' / heure</small></td>'+
+        '<td><input class="qte" data-cat="'+c.k+'" type="number" step="0.25" min="0" value="'+qte[c.k]+'"> h</td>'+
+        '<td class="montant">'+eur(montant)+'</td>'+
+        '</tr>';
+    });
+    $('lines').innerHTML=
+      '<table class="fac"><thead><tr><th>Article</th><th>Quantité</th><th>Montant HT</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody></table>';
+
+    var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
+    var tva=ht*TVA, ttc=ht+tva;
+    $('t-ht').textContent=eur(ht);
+    $('t-tva').textContent=eur(tva);
+    $('t-ttc').textContent=eur(ttc);
+    $('note').textContent='Module 6 — Devis · Alliance Team Sécurité · pré-rempli depuis le planning'+(manualEdit?' (quantités ajustées manuellement)':'');
+  }
+
+  function buildInvoice(){
+    var y=cursor.getFullYear(), m=cursor.getMonth();
+    var days=new Date(y,m+1,0).getDate();
+    var per='du 01/'+('0'+(m+1)).slice(-2)+'/'+String(y).slice(-2)+' au '+days+'/'+('0'+(m+1)).slice(-2)+'/'+String(y).slice(-2);
+    // ▼ LOGO NOIR (impression) : remplace __COLLE_LOGO_NOIR__ par le base64 logoNoir de ta facturation.html ▼
+    var logoNoir='data:image/png;base64,__COLLE_LOGO_NOIR__';
+    var logoHtml=(logoNoir.indexOf('__COLLE')<0)
+      ? '<div class="inv-logo"><img src="'+logoNoir+'"></div>'
+      : '<div class="inv-logo"><div style="font-size:22px;font-weight:800;color:#111">TEAM SÉCURITÉ</div></div>';
+    var rows='';
+    var ht=0;
+    CATS.forEach(function(c){
+      if(qte[c.k]<=0) return;
+      var mt=qte[c.k]*c.tarif; ht+=mt;
+      rows+='<tr><td>'+c.lib+' '+per+'</td><td>'+eur(c.tarif)+'</td><td>'+(qte[c.k]+'').replace('.',',')+' Heures</td><td>'+eur(mt)+'</td></tr>';
+    });
+    var tva=ht*TVA, ttc=ht+tva;
+    var today=new Date();
+    var dstr=('0'+today.getDate()).slice(-2)+'/'+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
+    var valid=new Date(today); valid.setDate(valid.getDate()+VALIDITE_JOURS);
+    var vstr=('0'+valid.getDate()).slice(-2)+'/'+('0'+(valid.getMonth()+1)).slice(-2)+'/'+valid.getFullYear();
+
+    $('invoice').innerHTML=
+      '<div class="inv-top">'+
+        '<div>'+logoHtml+
+          '<div class="inv-emit"><div class="nom">TEAM SÉCURITÉ</div>'+
+          'n° TVA 88754072200048<br>18 Place Winston Churchill 87000 Limoges<br>'+
+          '0669352462<br>contact@teamsecurite.fr</div>'+
+        '</div>'+
+        '<div class="inv-meta">'+
+          '<div class="lbl">Devis</div><div class="big">'+esc($('dev-num').value||'—')+'</div>'+
+          '<div class="lbl">Date d\'émission</div>'+dstr+
+          '<div class="lbl">Valable jusqu\'au</div>'+vstr+
+          '<div class="lbl">Total TTC</div><b>'+eur(ttc)+'</b>'+
+        '</div>'+
+      '</div>'+
+      '<div class="inv-bill"><div class="h">Adressé à</div>'+
+        '<div class="who">'+esc($('cli-nom').value)+'</div>'+
+        ($('cli-cmd').value?'Num Commande : '+esc($('cli-cmd').value)+'<br>':'')+
+        esc($('cli-mail').value)+'</div>'+
+      '<table class="inv-lines"><thead><tr><th>Article</th><th>Prix</th><th>Qté</th><th>Montant</th></tr></thead>'+
+        '<tbody>'+rows+'</tbody></table>'+
+      '<div class="inv-tot">'+
+        '<div class="r"><span>Sous-total HT</span><span>'+eur(ht)+'</span></div>'+
+        '<div class="r"><span>TVA (20%)</span><span>'+eur(tva)+'</span></div>'+
+        '<div class="r ttc"><span>Total TTC</span><span>'+eur(ttc)+'</span></div>'+
+      '</div>'+
+      '<div class="inv-rib">'+
+        '<div class="blk"><b>Coordonnées bancaires</b><br>'+
+          'Titulaire : ALLIANCE TEAM SECURITE<br>'+
+          'IBAN : FR76 1658 0000 1400 1270 6803 46<br>'+
+          'BIC : QNTOFRP1XXX</div>'+
+        '<div class="blk inv-accord" style="flex:1;min-width:220px"><b>Bon pour accord</b><br>'+
+          'À retourner daté et signé, précédé de la mention « Bon pour accord ».'+
+          '<div class="sign">Date et signature du client</div></div>'+
+      '</div>'+
+      '<div class="inv-pay">Devis gratuit et sans engagement, valable '+VALIDITE_JOURS+' jours à compter de la date d\'émission. '+
+        'Prix en euros HT, TVA au taux en vigueur (20%).</div>';
+  }
+
+  // ---- Export (CSV) ----
+  function csvNum(x){return (Math.round(x*100)/100).toFixed(2).replace('.',',');}
+  function csvCell(s){s=(s==null?'':String(s)); if(/[";\r\n]/.test(s)){s='"'+s.replace(/"/g,'""')+'"';} return s;}
+  function exportCompta(){
+    var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
+    if(ht<=0){toast('Aucune heure à exporter pour ce mois');return;}
+    var tva=ht*TVA, ttc=ht+tva;
+    var moisLbl=MOIS[cursor.getMonth()]+' '+cursor.getFullYear();
+    var today=new Date();
+    var dExport=('0'+today.getDate()).slice(-2)+'/'+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
+    var SEP=';';
+    var L=[];
+    L.push('TEAM SECURITE - Export devis');
+    L.push(csvCell('Devis')+SEP+csvCell($('dev-num').value||'-'));
+    L.push(csvCell('Client')+SEP+csvCell($('cli-nom').value||''));
+    L.push(csvCell('N° Commande')+SEP+csvCell($('cli-cmd').value||''));
+    L.push(csvCell('Période')+SEP+csvCell(moisLbl));
+    L.push(csvCell("Date d'export")+SEP+csvCell(dExport));
+    L.push('');
+    L.push(['Article','Prix unitaire HT','Quantité (h)','Montant HT'].map(csvCell).join(SEP));
+    CATS.forEach(function(c){
+      if(qte[c.k]<=0) return;
+      L.push([csvCell(c.lib),csvNum(c.tarif),csvNum(qte[c.k]),csvNum(qte[c.k]*c.tarif)].join(SEP));
+    });
+    L.push('');
+    L.push([csvCell(''),csvCell(''),csvCell('Sous-total HT'),csvNum(ht)].join(SEP));
+    L.push([csvCell(''),csvCell(''),csvCell('TVA 20%'),csvNum(tva)].join(SEP));
+    L.push([csvCell(''),csvCell(''),csvCell('Total TTC'),csvNum(ttc)].join(SEP));
+    var csv='\uFEFF'+L.join('\r\n');
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    var fnum=($('dev-num').value||'sans-num').replace(/[^\w\-]/g,'');
+    var fmois=MOIS[cursor.getMonth()]+'-'+cursor.getFullYear();
+    a.href=url; a.download='devis-'+fnum+'-'+fmois+'.csv';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},120);
+    toast('Export téléchargé');
+  }
+
+  document.addEventListener('input',function(e){
+    if(e.target.classList.contains('qte')){
+      var cat=e.target.getAttribute('data-cat');
+      qte[cat]=parseFloat(e.target.value)||0;
+      manualEdit=true;
+      // recalcul des totaux uniquement (sans re-render pour garder le focus)
+      var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
+      var tva=ht*TVA, ttc=ht+tva;
+      $('t-ht').textContent=eur(ht); $('t-tva').textContent=eur(tva); $('t-ttc').textContent=eur(ttc);
+      // maj du montant de la ligne
+      var tr=e.target.closest('tr');
+      if(tr) tr.querySelector('.montant').textContent=eur(qte[cat]*CATS.filter(function(c){return c.k===cat;})[0].tarif);
+      $('note').textContent='Module 6 — Devis · Alliance Team Sécurité · pré-rempli depuis le planning (quantités ajustées manuellement)';
+    }
+  });
+
+  document.addEventListener('click',function(e){
+    var t=e.target.closest?e.target.closest('[data-act]'):null;
+    if(!t) return;
+    var act=t.getAttribute('data-act');
+    if(act==='prev'){cursor.setMonth(cursor.getMonth()-1);recalc();}
+    else if(act==='next'){cursor.setMonth(cursor.getMonth()+1);recalc();}
+    else if(act==='recalc'){recalc();toast('Heures importées depuis le planning');}
+    else if(act==='export-compta'){exportCompta();}
+    else if(act==='cli-save'){enregistrerClient();}
+    else if(act==='cli-del'){supprimerClient();}
+    else if(act==='print'){
+      if(!$('dev-num').value){toast('Renseigne un n° de devis d\'abord');$('dev-num').focus();return;}
+      buildInvoice();
+      setTimeout(function(){window.print();},100);
+    }
+  });
+
+  // ---- Carnet de clients (Supabase) ----
+  var clients=[];
+  function remplirSelectClients(selId){
+    var sel=$('cli-select'); if(!sel) return;
+    var opts='';
+    clients.forEach(function(c){
+      opts+='<option value="'+c.id+'"'+(c.id===selId?' selected':'')+'>'+esc(c.nom)+'</option>';
+    });
+    opts+='<option value="__new__"'+(selId==='__new__'?' selected':'')+'>➕ Nouveau client…</option>';
+    sel.innerHTML=opts;
+  }
+  function appliquerClient(c){
+    $('cli-nom').value = c ? c.nom : '';
+    $('cli-mail').value = c ? (c.email||'') : '';
+    $('cli-cmd').value = c ? (c.num_commande||'') : '';
+  }
+  async function chargerClients(){
+    try{
+      var r=await db.from('clients').select('*').order('nom');
+      if(r.error) throw r.error;
+      clients=(r.data||[]);
+      if(clients.length){
+        var def=clients.filter(function(c){return /seris/i.test(c.nom);})[0]||clients[0];
+        remplirSelectClients(def.id);
+        appliquerClient(def);
+      }else{
+        remplirSelectClients('__new__');
+      }
+    }catch(err){
+      // table absente ou hors-ligne : on garde les valeurs par défaut affichées
+      remplirSelectClients('__new__');
+    }
+  }
+  async function enregistrerClient(){
+    var nom=($('cli-nom').value||'').trim();
+    if(!nom){toast('Renseigne le nom du client');$('cli-nom').focus();return;}
+    var payload={nom:nom,email:($('cli-mail').value||'').trim(),num_commande:($('cli-cmd').value||'').trim()};
+    var sel=$('cli-select').value, savedId=null;
+    try{
+      if(sel && sel!=='__new__'){
+        var u=await db.from('clients').update(payload).eq('id',sel).select();
+        if(u.error) throw u.error;
+        savedId=sel; toast('Client mis à jour');
+      }else{
+        var i=await db.from('clients').insert(payload).select();
+        if(i.error) throw i.error;
+        savedId=(i.data&&i.data[0])?i.data[0].id:null;
+        toast('Nouveau client enregistré');
+      }
+      await chargerClients();
+      var saved=clients.filter(function(c){return c.id===savedId;})[0]
+              ||clients.filter(function(c){return c.nom===nom;})[0];
+      if(saved){remplirSelectClients(saved.id);appliquerClient(saved);}
+    }catch(err){
+      toast('Échec : la table clients existe-t-elle ?');
+    }
+  }
+  async function supprimerClient(){
+    var sel=$('cli-select').value;
+    if(!sel||sel==='__new__'){toast('Aucun client sélectionné');return;}
+    var c=clients.filter(function(x){return x.id===sel;})[0];
+    if(!c) return;
+    if(!confirm('Supprimer le client « '+c.nom+' » ? Les devis déjà édités ne sont pas affectés.')) return;
+    try{
+      var d=await db.from('clients').delete().eq('id',sel);
+      if(d.error) throw d.error;
+      toast('Client supprimé');
+      await chargerClients();
+    }catch(err){
+      toast('Échec de la suppression');
+    }
+  }
+  document.addEventListener('change',function(e){
+    if(e.target && e.target.id==='cli-select'){
+      var v=e.target.value;
+      if(v==='__new__'){appliquerClient(null);$('cli-nom').focus();}
+      else{var c=clients.filter(function(x){return x.id===v;})[0];if(c)appliquerClient(c);}
+    }
+  });
+
+  chargerClients();
+  chargerTout();
+})();
+</script>
+</body>
+</html>
