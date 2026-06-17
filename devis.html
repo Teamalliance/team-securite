@@ -12,9 +12,10 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
-  header{background:linear-gradient(180deg,#1a222d,#11161d);border-bottom:2px solid var(--accent);padding:14px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:50}
+  .topbar{position:relative;z-index:50}
+  header{background:linear-gradient(180deg,#1a222d,#11161d);border-bottom:2px solid var(--accent);padding:14px 22px;display:flex;align-items:center;gap:14px}
   header .sub{font-size:11px;color:var(--ink-faint);letter-spacing:1.5px;text-transform:uppercase}
-  nav{display:flex;gap:2px;background:var(--panel);padding:0 22px;border-bottom:1px solid var(--line);position:sticky;top:95px;z-index:40;overflow-x:auto}
+  nav{display:flex;gap:2px;background:var(--panel);padding:0 22px;border-bottom:1px solid var(--line);overflow-x:auto}
   nav button{background:none;border:none;color:var(--ink-soft);padding:13px 18px;font-size:13.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
   nav button:hover{color:var(--ink)}
   nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
@@ -75,7 +76,7 @@
   /* ===== Devis imprimable ===== */
   .invoice{display:none}
   @media print{
-    header,nav,.bar,.info-box,.client-card,.client-bar,.lines,.totaux-fac,.note,.actions-row{display:none!important}
+    .topbar,header,nav,.bar,.info-box,.client-card,.client-bar,.lines,.totaux-fac,.note,.actions-row{display:none!important}
     body{background:#fff;color:#000}
     main{padding:0;max-width:100%}
     .invoice{display:block!important}
@@ -109,6 +110,7 @@
 </style>
 </head>
 <body>
+<div class="topbar">
 <header>
   <!-- ▼ LOGO HEADER : remplace __COLLE_LOGO_HEADER__ par le base64 du logo header de ta facturation.html ▼ -->
   <img id="logoHeader" src="data:image/png;base64,__COLLE_LOGO_HEADER__" alt="Alliance Team Sécurité" style="height:64px;width:auto;display:block" onerror="this.style.display='none'">
@@ -122,6 +124,7 @@
   <button onclick="location.href='facturation.html'">Facturation</button>
   <button class="active">Devis</button>
 </nav>
+</div>
 
 <main>
   <div class="bar">
