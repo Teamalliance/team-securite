@@ -149,7 +149,8 @@
   "use strict";
   var SB_URL='https://vympsutcqeyjmtatwyyo.supabase.co';
   var SB_KEY='sb_publishable_tR_1tWd030ZjBSeOBS7QPg_qV8DZ7IA';
-  var db=supabase.createClient(SB_URL,SB_KEY);
+  var db=null;
+  try{ if(typeof supabase!=='undefined' && supabase && supabase.createClient){ db=supabase.createClient(SB_URL,SB_KEY); } }catch(e){ db=null; }
 
   function $(id){return document.getElementById(id);}
   function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
