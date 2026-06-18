@@ -175,6 +175,7 @@
     <div class="field"><label>N° de commande</label><input id="cli-cmd" placeholder="ex : 20260650066"></div>
     <div class="field"><label>Email client</label><input id="cli-mail" value="jtourret@seris.fr"></div>
     <div class="field"><label>N° de devis</label><input id="dev-num" placeholder="ex : DEV-2026-001" value="DEV-2026-001"></div>
+    <div class="field"><label>Taux de TVA</label><select id="tva-rate"><option value="0.20" selected>20 %</option><option value="0.10">10 %</option><option value="0">0 %</option></select></div>
   </div>
 
   <div class="lines" id="lines"></div>
@@ -182,7 +183,7 @@
   <div class="totaux-fac">
     <div class="box">
       <div class="row"><span class="lbl">Sous-total HT</span><span id="t-ht">0,00 €</span></div>
-      <div class="row"><span class="lbl">TVA (20%)</span><span id="t-tva">0,00 €</span></div>
+      <div class="row"><span class="lbl" id="tva-lbl">TVA (20%)</span><span id="t-tva">0,00 €</span></div>
       <div class="row ttc"><span>Total TTC</span><span id="t-ttc">0,00 €</span></div>
     </div>
   </div>
@@ -210,7 +211,9 @@
   function r2(x){return Math.round(x*100)/100;}
 
   var MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-  var TVA=0.20;
+  var TVA=0.20; // valeur par defaut, surchargee par le selecteur
+  function tvaRate(){ var el=document.getElementById("tva-rate"); return el?(parseFloat(el.value)||0):TVA; }
+  function tvaPct(){ return (tvaRate()*100).toFixed(0).replace(".",","); }
   var VALIDITE_JOURS=30;
 
   // 6 catégories SERIS
@@ -323,8 +326,9 @@
       '<tbody>'+rows+'</tbody></table>';
 
     var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
-    var tva=ht*TVA, ttc=ht+tva;
+    var tva=ht*tvaRate(), ttc=ht+tva;
     $('t-ht').textContent=eur(ht);
+    var tl=document.getElementById('tva-lbl'); if(tl) tl.textContent='TVA ('+tvaPct()+'%)';
     $('t-tva').textContent=eur(tva);
     $('t-ttc').textContent=eur(ttc);
     $('note').textContent='Module 6 — Devis · Alliance Team Sécurité · pré-rempli depuis le planning'+(manualEdit?' (quantités ajustées manuellement)':'');
@@ -346,7 +350,7 @@
       var mt=qte[c.k]*c.tarif; ht+=mt;
       rows+='<tr><td>'+c.lib+' '+per+'</td><td>'+eur(c.tarif)+'</td><td>'+(qte[c.k]+'').replace('.',',')+' Heures</td><td>'+eur(mt)+'</td></tr>';
     });
-    var tva=ht*TVA, ttc=ht+tva;
+    var tva=ht*tvaRate(), ttc=ht+tva;
     var today=new Date();
     var dstr=('0'+today.getDate()).slice(-2)+'/'+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
     var valid=new Date(today); valid.setDate(valid.getDate()+VALIDITE_JOURS);
@@ -378,7 +382,7 @@
         '<tbody>'+rows+'</tbody></table>'+
       '<div class="inv-tot">'+
         '<div class="r"><span>Sous-total HT</span><span>'+eur(ht)+'</span></div>'+
-        '<div class="r"><span>TVA (20 %)</span><span>'+eur(tva)+'</span></div>'+
+        '<div class="r"><span>TVA ('+tvaPct()+' %)</span><span>'+eur(tva)+'</span></div>'+
         '<div class="r ttc"><span>Total TTC</span><span>'+eur(ttc)+'</span></div>'+
       '</div>'+
       '<div class="inv-foot">'+
@@ -391,7 +395,7 @@
           '<div class="sign">Date et signature du client</div></div>'+
       '</div>'+
       '<div class="inv-pay">Devis gratuit et sans engagement, valable '+VALIDITE_JOURS+' jours à compter de la date d\'émission. '+
-        'Prix en euros HT, TVA au taux en vigueur (20 %).</div>';
+        'Prix en euros HT, TVA au taux en vigueur ('+tvaPct()+' %).</div>';
   }
 
   // ---- Export (CSV) ----
@@ -400,7 +404,7 @@
   function exportCompta(){
     var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
     if(ht<=0){toast('Aucune heure à exporter pour ce mois');return;}
-    var tva=ht*TVA, ttc=ht+tva;
+    var tva=ht*tvaRate(), ttc=ht+tva;
     var moisLbl=MOIS[cursor.getMonth()]+' '+cursor.getFullYear();
     var today=new Date();
     var dExport=('0'+today.getDate()).slice(-2)+'/'+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
@@ -420,7 +424,7 @@
     });
     L.push('');
     L.push([csvCell(''),csvCell(''),csvCell('Sous-total HT'),csvNum(ht)].join(SEP));
-    L.push([csvCell(''),csvCell(''),csvCell('TVA 20%'),csvNum(tva)].join(SEP));
+    L.push([csvCell(''),csvCell(''),csvCell('TVA '+tvaPct()+'%'),csvNum(tva)].join(SEP));
     L.push([csvCell(''),csvCell(''),csvCell('Total TTC'),csvNum(ttc)].join(SEP));
     var csv='\uFEFF'+L.join('\r\n');
     var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
@@ -441,7 +445,7 @@
       manualEdit=true;
       // recalcul des totaux uniquement (sans re-render pour garder le focus)
       var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
-      var tva=ht*TVA, ttc=ht+tva;
+      var tva=ht*tvaRate(), ttc=ht+tva;
       $('t-ht').textContent=eur(ht); $('t-tva').textContent=eur(tva); $('t-ttc').textContent=eur(ttc);
       // maj du montant de la ligne
       var tr=e.target.closest('tr');
@@ -540,6 +544,7 @@
     }
   }
   document.addEventListener('change',function(e){
+    if(e.target && e.target.id==='tva-rate'){ render(); return; }
     if(e.target && e.target.id==='cli-select'){
       var v=e.target.value;
       if(v==='__new__'){appliquerClient(null);$('cli-nom').focus();}
