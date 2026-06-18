@@ -493,21 +493,34 @@
     return t; }
   function agentById(id){ for(var i=0;i<agents.length;i++) if(agents[i].id===id) return agents[i]; return null; }
   function moisLabel(){ return MOIS[cursor.getMonth()]+' '+cursor.getFullYear(); }
-  function agentMonthLines(ag){
-    var y=cursor.getFullYear(), m=cursor.getMonth(), days=new Date(y,m+1,0).getDate(), lines=[], tot=0;
+  function padR(s,n){ s=''+s; while(s.length<n) s+=' '; return s; }
+  function padL(s,n){ s=''+s; while(s.length<n) s=' '+s; return s; }
+  function hNum(h){ return (Math.round(h*100)/100).toString().replace('.',','); }
+  function agentRows(ag){
+    var y=cursor.getFullYear(), m=cursor.getMonth(), days=new Date(y,m+1,0).getDate(), rows=[], tot=0;
     for(var d=1; d<=days; d++){ var dt=new Date(y,m,d); var v=vacById(planning[ymd(dt)+'|'+ag.id]);
-      if(v){ var h=vacHours(v); tot+=h; var hor=v.debut?(' '+v.debut+'-'+v.fin):'';
-        lines.push(JOURS[dt.getDay()]+' '+pad(d)+'/'+pad(m+1)+' : '+v.code+hor+' ('+fmtH(h)+')'); } }
-    return {lines:lines, tot:tot};
+      if(v){ var h=vacHours(v); tot+=h;
+        rows.push({date:pad(d)+'/'+pad(m+1), code:(v.code||''), hor:(v.debut?v.debut+'-'+v.fin:'\u2014'), h:hNum(h)}); } }
+    return {rows:rows, tot:tot};
   }
-  function msgPlanning(ag){ var r=agentMonthLines(ag);
-    var t='Bonjour '+ag.prenom+',\n\nVoici ton planning de '+moisLabel()+' :\n';
-    t+= r.lines.length ? r.lines.map(function(l){return '• '+l;}).join('\n') : 'Aucune vacation affectée ce mois.';
-    return t+'\n\nTotal : '+fmtH(r.tot)+'\n— Team Sécurité'; }
-  function msgPointage(ag){ var r=agentMonthLines(ag);
-    var t='Bonjour '+ag.prenom+',\n\nVoici ton pointage (heures réalisées) — '+moisLabel()+' :\n';
-    t+= r.lines.length ? r.lines.map(function(l){return '• '+l;}).join('\n') : 'Aucune heure enregistrée ce mois.';
-    return t+'\n\nTotal heures : '+fmtH(r.tot)+'\nMerci de vérifier et de signaler toute erreur.\n— Team Sécurité'; }
+  function tableBloc(r){
+    if(!r.rows.length) return '';
+    var W1=6,W2=6,W3=13,W4=6;
+    var out='```\n'+padR('Date',W1)+padR('Poste',W2)+padR('Horaires',W3)+padL('H',W4)+'\n';
+    for(var i=0;i<r.rows.length;i++){ var x=r.rows[i];
+      out+=padR(x.date,W1)+padR(x.code,W2)+padR(x.hor,W3)+padL(x.h,W4)+'\n'; }
+    out+=padR('TOTAL',W1+W2+W3)+padL(hNum(r.tot),W4)+'\n```';
+    return out;
+  }
+  function moisCap(){ var s=moisLabel(); return s.charAt(0).toUpperCase()+s.slice(1); }
+  function msgPlanning(ag){ var r=agentRows(ag);
+    var t='Bonjour '+ag.prenom+',\n\nVoici ton planning \u2014 '+moisCap()+' :\n\n';
+    t+= r.rows.length ? tableBloc(r) : 'Aucune vacation affect\u00e9e ce mois.';
+    return t+'\n\n\u2014 Alliance Team S\u00e9curit\u00e9'; }
+  function msgPointage(ag){ var r=agentRows(ag);
+    var t='Bonjour '+ag.prenom+',\n\nVoici ton pointage (heures r\u00e9alis\u00e9es) \u2014 '+moisCap()+' :\n\n';
+    t+= r.rows.length ? tableBloc(r) : 'Aucune heure enregistr\u00e9e ce mois.';
+    return t+'\n\nMerci de v\u00e9rifier et de signaler toute erreur.\n\u2014 Alliance Team S\u00e9curit\u00e9'; }
   function sendWA(ag,kind){ var intl=telIntl(ag.tel); if(!intl){ toast('Numéro manquant pour '+ag.prenom); return; }
     var txt=(kind==='pointage'?msgPointage(ag):msgPlanning(ag));
     window.open('https://wa.me/'+intl+'?text='+encodeURIComponent(txt),'_blank'); }
