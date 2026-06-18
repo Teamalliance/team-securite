@@ -133,6 +133,13 @@
     .desktop-only{display:none}
     .row-2{grid-template-columns:1fr}
   }
+  .snd-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .snd-row:last-child{border-bottom:none}
+  .snd-name{font-weight:600;font-size:13.5px;min-width:130px}
+  .snd-name small{display:block;font-weight:400;color:var(--ink-soft);font-size:11px;margin-top:2px}
+  .snd-btns{display:flex;gap:6px;flex-wrap:wrap}
+  .snd-btns .btn{padding:6px 10px;font-size:12px}
+  .snd-btns .btn[disabled]{opacity:.35;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -165,6 +172,7 @@
         <button data-act="next">›</button>
       </div>
       <button class="btn btn-ghost btn-sm" data-act="today">Aujourd'hui</button>
+      <button class="btn btn-sm" data-act="send-agents">📤 Envoyer aux agents</button>
     </div>
 
     <!-- Desktop: grille mensuelle -->
@@ -246,6 +254,15 @@
   </div>
 </div>
 
+<div class="overlay" id="send-ov">
+  <div class="modal" style="max-width:560px">
+    <h3><span class="dot"></span> Envoyer aux agents</h3>
+    <div class="msub" id="send-sub">Planning ou pointage du mois — via WhatsApp ou e-mail.</div>
+    <div id="send-list"></div>
+    <div class="modal-actions"><div></div><div class="right"><button class="btn btn-ghost" data-act="close">Fermer</button></div></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -255,7 +272,8 @@
 
   var SB_URL = 'https://vympsutcqeyjmtatwyyo.supabase.co';
   var SB_KEY = 'sb_publishable_tR_1tWd030ZjBSeOBS7QPg_qV8DZ7IA';
-  var db = supabase.createClient(SB_URL, SB_KEY);
+  var db = null;
+  try{ if(typeof supabase!=='undefined' && supabase && supabase.createClient){ db = supabase.createClient(SB_URL, SB_KEY); } }catch(e){ db = null; }
 
   function $(id){ return document.getElementById(id); }
   function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -300,14 +318,16 @@
 
   /* ====== Chargement Supabase ====== */
   async function chargerTout(){
-    var ra=await db.from('agents').select('*').order('cree_le');
-    var rv=await db.from('vacations').select('*');
-    var rp=await db.from('planning').select('*');
-    agents=(ra.data||[]).map(function(x){return {id:x.id,prenom:x.prenom,nom:x.nom};});
-    vacs=(rv.data||[]).map(function(x){return {id:x.id,code:x.code,type:x.type,lib:x.lib,act:x.act,debut:x.debut,fin:x.fin};});
-    planning={};
-    (rp.data||[]).forEach(function(x){ if(x.vac_id) planning[x.cle]=x.vac_id; });
-    renderVacs(); renderPlanning();
+    try{
+      var ra=await db.from('agents').select('*').order('cree_le');
+      var rv=await db.from('vacations').select('*');
+      var rp=await db.from('planning').select('*');
+      agents=(ra.data||[]).map(function(x){return {id:x.id,prenom:x.prenom,nom:x.nom,tel:x.tel,mail:x.mail};});
+      vacs=(rv.data||[]).map(function(x){return {id:x.id,code:x.code,type:x.type,lib:x.lib,act:x.act,debut:x.debut,fin:x.fin};});
+      planning={};
+      (rp.data||[]).forEach(function(x){ if(x.vac_id) planning[x.cle]=x.vac_id; });
+      renderVacs(); renderPlanning();
+    }catch(err){ toast('Connexion en cours… réessaie'); try{ renderVacs(); renderPlanning(); }catch(e2){} }
   }
 
   function renderVacs(){
@@ -465,6 +485,54 @@
     closeAll(); toast('Case vidée'); await chargerTout();
   }
 
+  // ===== Envoi planning / pointage aux agents =====
+  function telIntl(t){ t=(t||'').replace(/[^\d+]/g,''); if(!t) return '';
+    if(t.charAt(0)==='+') return t.replace(/\D/g,'');
+    if(t.indexOf('00')===0) return t.slice(2);
+    if(t.charAt(0)==='0') return '33'+t.slice(1);
+    return t; }
+  function agentById(id){ for(var i=0;i<agents.length;i++) if(agents[i].id===id) return agents[i]; return null; }
+  function moisLabel(){ return MOIS[cursor.getMonth()]+' '+cursor.getFullYear(); }
+  function agentMonthLines(ag){
+    var y=cursor.getFullYear(), m=cursor.getMonth(), days=new Date(y,m+1,0).getDate(), lines=[], tot=0;
+    for(var d=1; d<=days; d++){ var dt=new Date(y,m,d); var v=vacById(planning[ymd(dt)+'|'+ag.id]);
+      if(v){ var h=vacHours(v); tot+=h; var hor=v.debut?(' '+v.debut+'-'+v.fin):'';
+        lines.push(JOURS[dt.getDay()]+' '+pad(d)+'/'+pad(m+1)+' : '+v.code+hor+' ('+fmtH(h)+')'); } }
+    return {lines:lines, tot:tot};
+  }
+  function msgPlanning(ag){ var r=agentMonthLines(ag);
+    var t='Bonjour '+ag.prenom+',\n\nVoici ton planning de '+moisLabel()+' :\n';
+    t+= r.lines.length ? r.lines.map(function(l){return '• '+l;}).join('\n') : 'Aucune vacation affectée ce mois.';
+    return t+'\n\nTotal : '+fmtH(r.tot)+'\n— Team Sécurité'; }
+  function msgPointage(ag){ var r=agentMonthLines(ag);
+    var t='Bonjour '+ag.prenom+',\n\nVoici ton pointage (heures réalisées) — '+moisLabel()+' :\n';
+    t+= r.lines.length ? r.lines.map(function(l){return '• '+l;}).join('\n') : 'Aucune heure enregistrée ce mois.';
+    return t+'\n\nTotal heures : '+fmtH(r.tot)+'\nMerci de vérifier et de signaler toute erreur.\n— Team Sécurité'; }
+  function sendWA(ag,kind){ var intl=telIntl(ag.tel); if(!intl){ toast('Numéro manquant pour '+ag.prenom); return; }
+    var txt=(kind==='pointage'?msgPointage(ag):msgPlanning(ag));
+    window.open('https://wa.me/'+intl+'?text='+encodeURIComponent(txt),'_blank'); }
+  function sendMail(ag,kind){ if(!ag.mail){ toast('E-mail manquant pour '+ag.prenom); return; }
+    var subj=(kind==='pointage'?'Ton pointage ':'Ton planning ')+moisLabel();
+    var txt=(kind==='pointage'?msgPointage(ag):msgPlanning(ag));
+    window.location.href='mailto:'+encodeURIComponent(ag.mail)+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(txt); }
+  function openSend(){
+    if(!agents.length){ toast('Aucun agent'); return; }
+    $('send-sub').textContent='Planning / pointage de '+moisLabel()+' — via WhatsApp ou e-mail.';
+    var h='';
+    for(var i=0;i<agents.length;i++){ var a=agents[i];
+      var noTel=telIntl(a.tel)?'':' disabled', noMail=a.mail?'':' disabled';
+      h+='<div class="snd-row"><div class="snd-name">'+esc(agentLabel(a))+
+         '<small>'+(a.tel?esc(a.tel):'pas de n°')+(a.mail?' · '+esc(a.mail):'')+'</small></div>'+
+         '<div class="snd-btns">'+
+           '<button class="btn" data-act="snd" data-id="'+a.id+'" data-k="planning" data-ch="wa"'+noTel+'>📲 Planning</button>'+
+           '<button class="btn" data-act="snd" data-id="'+a.id+'" data-k="pointage" data-ch="wa"'+noTel+'>📲 Pointage</button>'+
+           '<button class="btn btn-ghost" data-act="snd" data-id="'+a.id+'" data-k="planning" data-ch="mail"'+noMail+'>✉️ Plan.</button>'+
+           '<button class="btn btn-ghost" data-act="snd" data-id="'+a.id+'" data-k="pointage" data-ch="mail"'+noMail+'>✉️ Point.</button>'+
+         '</div></div>';
+    }
+    $('send-list').innerHTML=h; $('send-ov').classList.add('open');
+  }
+
   document.addEventListener('click',function(e){
     var t=e.target.closest ? e.target.closest('[data-act]') : null;
     if(!t){
@@ -487,6 +555,8 @@
     else if(act==='assign-clear') clearAssign();
     else if(act==='pick-vac'){ pickedVac=(pickedVac===id?null:id); renderVacPicker(pickedVac); }
     else if(act==='close') closeAll();
+    else if(act==='send-agents') openSend();
+    else if(act==='snd'){ var sa=agentById(id); if(sa){ if(t.getAttribute('data-ch')==='mail') sendMail(sa,t.getAttribute('data-k')); else sendWA(sa,t.getAttribute('data-k')); } }
   });
   document.querySelectorAll('.overlay').forEach(function(ov){ ov.addEventListener('click',function(e){ if(e.target===ov) closeAll(); }); });
   if($('as-agent')) $('as-agent').addEventListener('change',function(){ renderVacPicker(planning[assignCtx.date+'|'+this.value]); });
