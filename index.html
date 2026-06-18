@@ -134,6 +134,7 @@
       <div class="field"><label>Statut</label>
         <select id="a-statut"><option>Actif</option><option>Inactif</option></select></div>
     </div>
+    <div class="field"><label>E-mail</label><input id="a-mail" type="email" placeholder="agent@email.fr"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" data-act="close">Annuler</button>
       <button class="btn" data-act="save-agent">Enregistrer</button>
@@ -185,7 +186,8 @@
   /* ====== Connexion Supabase ====== */
   var SB_URL = 'https://vympsutcqeyjmtatwyyo.supabase.co';
   var SB_KEY = 'sb_publishable_tR_1tWd030ZjBSeOBS7QPg_qV8DZ7IA';
-  var db = supabase.createClient(SB_URL, SB_KEY);
+  var db = null;
+  try{ if(typeof supabase!=='undefined' && supabase && supabase.createClient){ db = supabase.createClient(SB_URL, SB_KEY); } }catch(e){ db = null; }
 
   function $(id){ return document.getElementById(id); }
   function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -231,7 +233,7 @@
     var ra = await db.from('agents').select('*').order('cree_le');
     var rs = await db.from('sites').select('*').order('cree_le');
     var rc = await db.from('contrats').select('*').order('cree_le');
-    agents   = (ra.data||[]).map(function(x){ return {id:x.id,prenom:x.prenom,nom:x.nom,carte:x.carte,tel:x.tel,statut:x.statut}; });
+    agents   = (ra.data||[]).map(function(x){ return {id:x.id,prenom:x.prenom,nom:x.nom,carte:x.carte,tel:x.tel,mail:x.mail,statut:x.statut}; });
     sites    = (rs.data||[]).map(function(x){ return {id:x.id,nom:x.nom,adresse:x.adresse,client:x.client,contact:x.contact}; });
     contrats = (rc.data||[]).map(function(x){ return {id:x.id,agentId:x.agent_id,type:x.type,taux:x.taux,debut:x.debut,fin:x.fin}; });
     renderAgents(); renderSites(); renderContrats(); fillAgentOptions();
@@ -300,7 +302,7 @@
     $('agent-title').textContent = id?'Modifier agent':'Nouvel agent';
     var a={}; for(var i=0;i<agents.length;i++) if(agents[i].id===id) a=agents[i];
     $('a-id').value=a.id||''; $('a-prenom').value=a.prenom||''; $('a-nom').value=a.nom||'';
-    $('a-carte').value=a.carte||''; $('a-tel').value=a.tel||''; $('a-statut').value=a.statut||'Actif';
+    $('a-carte').value=a.carte||''; $('a-tel').value=a.tel||''; $('a-mail').value=a.mail||''; $('a-statut').value=a.statut||'Actif';
     openModal('modal-agent');
   }
   function openSite(id){
@@ -324,7 +326,7 @@
   async function saveAgent(){
     var p=$('a-prenom').value.trim(), n=$('a-nom').value.trim();
     if(!p||!n){ toast('Prénom et nom requis'); return; }
-    var o={id:$('a-id').value||uid(),prenom:p,nom:n,carte:$('a-carte').value.trim(),tel:$('a-tel').value.trim(),statut:$('a-statut').value};
+    var o={id:$('a-id').value||uid(),prenom:p,nom:n,carte:$('a-carte').value.trim(),tel:$('a-tel').value.trim(),mail:$('a-mail').value.trim(),statut:$('a-statut').value};
     var r=await db.from('agents').upsert(o);
     if(r.error){ toast('Erreur: '+r.error.message); return; }
     closeModal(); toast('Agent enregistré'); await chargerTout();
