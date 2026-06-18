@@ -58,6 +58,13 @@
   table.fac td.montant{font-weight:700}
   table.fac .auto-badge{font-size:10px;color:var(--ink-faint);margin-left:6px}
   table.fac tfoot td{background:var(--panel-2);font-weight:700;border-bottom:none}
+  table.fac input.ln-lib{width:100%;min-width:170px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);padding:7px 9px;border-radius:6px;font-size:13.5px;font-family:inherit;text-align:left}
+  table.fac input.ln-pu,table.fac input.ln-qte{width:84px;background:var(--panel-2);border:1px solid var(--line);color:var(--accent);padding:6px 8px;border-radius:6px;font-size:14px;text-align:right;font-family:inherit;font-weight:700}
+  table.fac input.ln-lib:focus,table.fac input.ln-pu:focus,table.fac input.ln-qte:focus{outline:none;border-color:var(--accent)}
+  table.fac td:last-child{width:36px;text-align:center}
+  table.fac .ln-del{background:transparent;border:none;color:var(--ink-faint);font-size:20px;line-height:1;cursor:pointer;padding:2px 7px;border-radius:6px}
+  table.fac .ln-del:hover{color:var(--danger);background:rgba(240,86,109,.12)}
+  .btn-add{margin-top:12px}
 
   /* Totaux */
   .totaux-fac{display:flex;justify-content:flex-end;margin-bottom:20px}
@@ -150,15 +157,15 @@
         <div class="lbl" id="period-label">—</div>
         <button data-act="next">›</button>
       </div>
-      <button class="btn-ghost btn" data-act="recalc">↻ Recalculer</button>
+      <button class="btn-ghost btn" data-act="recalc">↻ Importer le planning</button>
       <button class="btn-ghost btn" data-act="export-compta">⬇ Export compta</button>
       <button class="btn" data-act="print">🖨 Éditer la facture</button>
     </div>
   </div>
 
   <div class="info-box">
-    Les quantités d'heures sont <b>calculées automatiquement</b> depuis le planning du mois, ventilées selon les 6 catégories SERIS.
-    Tu peux <b>ajuster chaque quantité à la main</b> (chiffres négociés) avant d'éditer la facture. Tarifs et TVA sont appliqués automatiquement.
+    <b>Lignes libres</b> : saisis ta désignation, ton prix unitaire et ta quantité — ajoute ou supprime autant de lignes que tu veux.
+    Le bouton <b>« Importer le planning »</b> pré-remplit les 6 catégories SERIS du mois (modifiables ensuite). La TVA est sélectionnable dans les totaux.
   </div>
 
   <div class="client-bar">
@@ -240,7 +247,12 @@
 
   var agents=[], vacs=[], planning={}, feries={};
   var cursor=new Date(); cursor.setDate(1); cursor.setHours(0,0,0,0);
-  var qte={jo:0,no:0,dj:0,dn:0,fj:0,fn:0};
+  var lines=[];
+  function blankLine(){ return {lib:'',pu:0,qte:0}; }
+  function ensureLines(){ if(!lines.length){ lines=[blankLine(),blankLine(),blankLine()]; } }
+  function totalHT(){ var s=0; for(var i=0;i<lines.length;i++) s+=(lines[i].pu||0)*(lines[i].qte||0); return s; }
+  function majTotaux(){ var ht=totalHT(), tva=ht*tvaRate(), ttc=ht+tva;
+    $('t-ht').textContent=eur(ht); $('t-tva').textContent=eur(tva); $('t-ttc').textContent=eur(ttc); }
   var manualEdit=false; // si l'utilisateur a touché les quantités
 
   function vacById(id){for(var i=0;i<vacs.length;i++) if(vacs[i].id===id) return vacs[i];return null;}
@@ -278,7 +290,8 @@
       vacs=(rv.data||[]).map(function(x){return {id:x.id,code:x.code,type:x.type,debut:x.debut,fin:x.fin};});
       planning={};
       (rp.data||[]).forEach(function(x){ if(x.vac_id) planning[x.cle]=x.vac_id; });
-      recalc();
+      feries=feriesAnnee(cursor.getFullYear());
+      render();
     }catch(err){
       toast('Connexion en cours… réessaie Recalculer');
       render();
@@ -301,7 +314,7 @@
         for(var k in tot) tot[k]+=r[k];
       }
     }
-    for(var k in tot) qte[k]=r2(tot[k]);
+    lines=CATS.map(function(c){ return {lib:c.lib, pu:c.tarif, qte:r2(tot[c.k]||0)}; });
     manualEdit=false;
     render();
   }
@@ -310,25 +323,23 @@
     var lbl=MOIS[cursor.getMonth()]+' '+cursor.getFullYear();
     $('period-label').textContent=lbl;
 
+    ensureLines();
     var rows='';
-    CATS.forEach(function(c){
-      var montant=qte[c.k]*c.tarif;
+    for(var i=0;i<lines.length;i++){ var ln=lines[i]; var montant=(ln.pu||0)*(ln.qte||0);
       rows+='<tr>'+
-        '<td class="lib">'+c.lib+'<small>'+eur(c.tarif)+' / heure</small></td>'+
-        '<td><input class="qte" data-cat="'+c.k+'" type="number" step="0.25" min="0" value="'+qte[c.k]+'"> h</td>'+
+        '<td class="lib"><input class="ln-lib" data-i="'+i+'" value="'+esc(ln.lib)+'" placeholder="Désignation de la prestation"></td>'+
+        '<td><input class="ln-pu" data-i="'+i+'" type="number" step="0.01" min="0" value="'+(ln.pu||'')+'" placeholder="0"> €</td>'+
+        '<td><input class="ln-qte" data-i="'+i+'" type="number" step="0.25" min="0" value="'+(ln.qte||'')+'" placeholder="0"></td>'+
         '<td class="montant">'+eur(montant)+'</td>'+
+        '<td><button class="ln-del" data-act="del-line" data-i="'+i+'" title="Supprimer la ligne">×</button></td>'+
         '</tr>';
-    });
+    }
     $('lines').innerHTML=
-      '<table class="fac"><thead><tr><th>Article</th><th>Quantité</th><th>Montant HT</th></tr></thead>'+
-      '<tbody>'+rows+'</tbody></table>';
-
-    var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
-    var tva=ht*tvaRate(), ttc=ht+tva;
-    $('t-ht').textContent=eur(ht);
-    $('t-tva').textContent=eur(tva);
-    $('t-ttc').textContent=eur(ttc);
-    $('note').textContent='Module 5 — Facturation · Alliance Team Sécurité · calcul auto depuis le planning'+(manualEdit?' (quantités ajustées manuellement)':'');
+      '<table class="fac"><thead><tr><th>Désignation</th><th>P.U. HT</th><th>Quantité</th><th>Montant HT</th><th></th></tr></thead>'+
+      '<tbody>'+rows+'</tbody></table>'+
+      '<button class="btn-ghost btn btn-add" data-act="add-line">+ Ajouter une ligne</button>';
+    majTotaux();
+    $('note').textContent='Module 5 — Facturation · Alliance Team Sécurité · lignes libres'+(manualEdit?' (modifié)':'');
   }
 
   function buildInvoice(){
@@ -339,11 +350,12 @@
     var logoHtml='<div class="inv-logo"><img src="'+logoNoir+'"></div>';
     var rows='';
     var ht=0;
-    CATS.forEach(function(c){
-      if(qte[c.k]<=0) return;
-      var mt=qte[c.k]*c.tarif; ht+=mt;
-      rows+='<tr><td>'+c.lib+'</td><td>'+eur(c.tarif)+'</td><td>'+(qte[c.k]+'').replace('.',',')+' Heures</td><td>'+eur(mt)+'</td></tr>';
-    });
+    for(var i=0;i<lines.length;i++){ var ln=lines[i]; var mt=(ln.pu||0)*(ln.qte||0);
+      if(mt<=0) continue;
+      ht+=mt;
+      var q=(ln.qte||0).toString().replace('.',',');
+      rows+='<tr><td>'+esc(ln.lib||'—')+'</td><td>'+eur(ln.pu)+'</td><td>'+q+'</td><td>'+eur(mt)+'</td></tr>';
+    }
     var tva=ht*tvaRate(), ttc=ht+tva;
     var today=new Date();
     var dstr=('0'+today.getDate()).slice(-2)+'/'+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
@@ -351,7 +363,7 @@
     $('invoice').innerHTML=
       '<div class="inv-top">'+
         '<div>'+logoHtml+
-          '<div class="inv-emit"><div class="nom">TEAM SÉCURITÉ</div>'+
+          '<div class="inv-emit"><div class="nom">ALLIANCE TEAM SÉCURITÉ</div>'+
           'n° TVA 88754072200048<br>18 Place Winston Churchill 87000 Limoges<br>'+
           '0669352462 · contact@teamsecurite.fr</div>'+
         '</div>'+
@@ -372,7 +384,7 @@
           '<div class="sub" style="margin-top:6px;font-size:13px;color:var(--nav);font-weight:600">'+per+'</div>'+
         '</div>'+
       '</div>'+
-      '<table class="inv-lines"><thead><tr><th>Désignation</th><th>Prix / h</th><th>Quantité</th><th>Montant HT</th></tr></thead>'+
+      '<table class="inv-lines"><thead><tr><th>Désignation</th><th>P.U. HT</th><th>Quantité</th><th>Montant HT</th></tr></thead>'+
         '<tbody>'+rows+'</tbody></table>'+
       '<div class="inv-bottom">'+
         '<div class="inv-rib"><div class="h">Coordonnées bancaires</div>'+
@@ -386,21 +398,21 @@
           '<div class="ttc"><span class="lab">Total TTC</span><span class="val">'+eur(ttc)+'</span></div>'+
         '</div>'+
       '</div>'+
-      '<div class="inv-foot">TEAM SÉCURITÉ · 18 Place Winston Churchill, 87000 Limoges · n° TVA 88754072200048<br>Merci pour votre confiance.</div>';
+      '<div class="inv-foot">ALLIANCE TEAM SÉCURITÉ · 18 Place Winston Churchill, 87000 Limoges · n° TVA 88754072200048<br>Merci pour votre confiance.</div>';
   }
 // ---- Export comptable (CSV) ----
   function csvNum(x){return (Math.round(x*100)/100).toFixed(2).replace('.',',');}
   function csvCell(s){s=(s==null?'':String(s)); if(/[";\r\n]/.test(s)){s='"'+s.replace(/"/g,'""')+'"';} return s;}
   function exportCompta(){
-    var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
-    if(ht<=0){toast('Aucune heure à exporter pour ce mois');return;}
+    var ht=totalHT();
+    if(ht<=0){toast('Aucune ligne à exporter');return;}
     var tva=ht*tvaRate(), ttc=ht+tva;
     var moisLbl=MOIS[cursor.getMonth()]+' '+cursor.getFullYear();
     var today=new Date();
     var dExport=('0'+today.getDate()).slice(-2)+'/'+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
     var SEP=';';
     var L=[];
-    L.push('TEAM SECURITE - Export comptable');
+    L.push('ALLIANCE TEAM SECURITE - Export comptable');
     L.push(csvCell('Facture')+SEP+csvCell($('fac-num').value||'-'));
     L.push(csvCell('Client')+SEP+csvCell($('cli-nom').value||''));
     L.push(csvCell('N° Commande')+SEP+csvCell($('cli-cmd').value||''));
@@ -408,10 +420,10 @@
     L.push(csvCell("Date d'export")+SEP+csvCell(dExport));
     L.push('');
     L.push(['Article','Prix unitaire HT','Quantité (h)','Montant HT'].map(csvCell).join(SEP));
-    CATS.forEach(function(c){
-      if(qte[c.k]<=0) return;
-      L.push([csvCell(c.lib),csvNum(c.tarif),csvNum(qte[c.k]),csvNum(qte[c.k]*c.tarif)].join(SEP));
-    });
+    for(var i=0;i<lines.length;i++){ var ln=lines[i]; var mt=(ln.pu||0)*(ln.qte||0);
+      if(mt<=0) continue;
+      L.push([csvCell(ln.lib),csvNum(ln.pu),csvNum(ln.qte),csvNum(mt)].join(SEP));
+    }
     L.push('');
     L.push([csvCell(''),csvCell(''),csvCell('Sous-total HT'),csvNum(ht)].join(SEP));
     L.push([csvCell(''),csvCell(''),csvCell('TVA '+tvaPct()+'%'),csvNum(tva)].join(SEP));
@@ -428,37 +440,33 @@
     toast('Export compta téléchargé');
   }
   document.addEventListener('input',function(e){
-    if(e.target.classList.contains('qte')){
-      var cat=e.target.getAttribute('data-cat');
-      qte[cat]=parseFloat(e.target.value)||0;
+    var el=e.target;
+    if(el.classList.contains('ln-lib')||el.classList.contains('ln-pu')||el.classList.contains('ln-qte')){
+      var i=+el.getAttribute('data-i'); if(!lines[i]) return;
+      if(el.classList.contains('ln-lib')) lines[i].lib=el.value;
+      else if(el.classList.contains('ln-pu')) lines[i].pu=parseFloat(el.value)||0;
+      else lines[i].qte=parseFloat(el.value)||0;
       manualEdit=true;
-      // recalcul des totaux uniquement (sans re-render pour garder le focus)
-      var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
-      var tva=ht*tvaRate(), ttc=ht+tva;
-      $('t-ht').textContent=eur(ht); $('t-tva').textContent=eur(tva); $('t-ttc').textContent=eur(ttc);
-      // maj du montant de la ligne
-      var tr=e.target.closest('tr');
-      if(tr) tr.querySelector('.montant').textContent=eur(qte[cat]*CATS.filter(function(c){return c.k===cat;})[0].tarif);
-      $('note').textContent='Module 5 — Facturation · Alliance Team Sécurité · calcul auto depuis le planning (quantités ajustées manuellement)';
+      var tr=el.closest('tr');
+      if(tr){ var mc=tr.querySelector('.montant'); if(mc) mc.textContent=eur((lines[i].pu||0)*(lines[i].qte||0)); }
+      majTotaux();
     }
   });
 
   document.addEventListener('change',function(e){
-    if(e.target&&e.target.id==='tva-rate'){
-      var ht=0; CATS.forEach(function(c){ht+=qte[c.k]*c.tarif;});
-      var tva=ht*tvaRate(), ttc=ht+tva;
-      $('t-ht').textContent=eur(ht); $('t-tva').textContent=eur(tva); $('t-ttc').textContent=eur(ttc);
-    }
+    if(e.target&&e.target.id==='tva-rate'){ majTotaux(); }
   });
 
   document.addEventListener('click',function(e){
     var t=e.target.closest?e.target.closest('[data-act]'):null;
     if(!t) return;
     var act=t.getAttribute('data-act');
-    if(act==='prev'){cursor.setMonth(cursor.getMonth()-1);recalc();}
-    else if(act==='next'){cursor.setMonth(cursor.getMonth()+1);recalc();}
+    if(act==='prev'){cursor.setMonth(cursor.getMonth()-1);render();}
+    else if(act==='next'){cursor.setMonth(cursor.getMonth()+1);render();}
     else if(act==='recalc'){recalc();toast('Quantités recalculées depuis le planning');}
       else if(act==='export-compta'){exportCompta();}
+    else if(act==='add-line'){ lines.push(blankLine()); manualEdit=true; render(); }
+    else if(act==='del-line'){ var di=+t.getAttribute('data-i'); if(di>=0){ lines.splice(di,1); manualEdit=true; render(); } }
     else if(act==='cli-save'){enregistrerClient();}
     else if(act==='cli-del'){supprimerClient();}
     else if(act==='print'){
