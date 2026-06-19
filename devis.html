@@ -83,6 +83,7 @@
   /* ===== Devis imprimable ===== */
   .invoice{display:none}
   @media print{
+    @page{size:A4;margin:0}
     .topbar,header,nav,.bar,.info-box,.client-card,.client-bar,.lines,.totaux-fac,.note,.actions-row{display:none!important}
     body{background:#fff;color:#000}
     main{padding:0;max-width:100%}
@@ -252,7 +253,7 @@
   var cursor=new Date(); cursor.setDate(1); cursor.setHours(0,0,0,0);
   var lines=[];
   function blankLine(){ return {lib:'',pu:0,qte:0}; }
-  function ensureLines(){ if(!lines.length){ lines=[blankLine(),blankLine(),blankLine()]; } }
+  function ensureLines(){ if(!lines.length){ lines=[]; for(var _i=0;_i<20;_i++){ lines.push(blankLine()); } } }
   function totalHT(){ var s=0; for(var i=0;i<lines.length;i++) s+=(lines[i].pu||0)*(lines[i].qte||0); return s; }
   function majTotaux(){ var ht=totalHT(), tva=ht*tvaRate(), ttc=ht+tva;
     $('t-ht').textContent=eur(ht);
@@ -466,6 +467,28 @@
     }
   });
 
+  // ---- Archivage AUTO du devis dans Supabase (silencieux) ----
+  async function archiverDevisAuto(){
+    if(!db) return; // pas de DB dispo : on n'empêche jamais l'impression
+    try{
+      var ht=totalHT(), tva=ht*tvaRate(), ttc=ht+tva;
+      var lignes=lines
+        .filter(function(l){ return ((l.pu||0)*(l.qte||0)!==0) || (l.lib||'').trim()!==''; })
+        .map(function(l){ return {designation:(l.lib||''), pu:(l.pu||0), qte:(l.qte||0), montant:r2((l.pu||0)*(l.qte||0))}; });
+      var payload={
+        numero:($('dev-num').value||'').trim(),
+        client:($('cli-nom').value||'').trim(),
+        email:($('cli-mail').value||'').trim(),
+        num_commande:($('cli-cmd').value||'').trim(),
+        mois:MOIS[cursor.getMonth()]+' '+cursor.getFullYear(),
+        tva_taux:tvaRate(),
+        total_ht:r2(ht), total_tva:r2(tva), total_ttc:r2(ttc),
+        lignes:lignes
+      };
+      await db.from('devis').upsert(payload,{onConflict:'numero'});
+    }catch(e){ /* archivage silencieux : aucune interruption de l'impression */ }
+  }
+
   document.addEventListener('click',function(e){
     var t=e.target.closest?e.target.closest('[data-act]'):null;
     if(!t) return;
@@ -481,6 +504,7 @@
     else if(act==='print'){
       if(!$('dev-num').value){toast('Renseigne un n° de devis d\'abord');$('dev-num').focus();return;}
       buildInvoice();
+      archiverDevisAuto();
       setTimeout(function(){window.print();},100);
     }
   });
