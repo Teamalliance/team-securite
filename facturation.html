@@ -81,6 +81,22 @@
   .note{text-align:center;color:var(--ink-faint);font-size:11.5px;margin-top:30px}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ok);color:#06210d;padding:11px 20px;border-radius:10px;font-weight:700;font-size:13px;opacity:0;transition:.3s;z-index:200}
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .hist-ov{position:fixed;inset:0;background:rgba(8,12,18,.72);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:54px 16px;overflow:auto}
+  .hist-ov.show{display:flex}
+  .hist-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:100%;max-width:720px;box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden}
+  .hist-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .hist-head h3{font-size:16px;font-weight:700}
+  .hist-close{background:var(--panel-2);border:1px solid var(--line);color:var(--ink);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:17px;font-family:inherit}
+  .hist-close:hover{border-color:var(--accent);color:var(--accent)}
+  .hist-body{max-height:62vh;overflow:auto;padding:8px}
+  .hist-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin:6px;cursor:pointer;background:var(--panel-2);transition:.15s}
+  .hist-row:hover{border-color:var(--accent);background:var(--line)}
+  .hist-row .l .num{font-weight:700;font-size:14px;color:var(--ink)}
+  .hist-row .l .cli{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+  .hist-row .r{text-align:right;white-space:nowrap}
+  .hist-row .r .ttc{font-weight:800;color:var(--accent);font-size:14px}
+  .hist-row .r .mois{font-size:11px;color:var(--ink-faint);text-transform:capitalize;margin-top:2px}
+  .hist-empty{padding:30px;text-align:center;color:var(--ink-soft);font-size:13.5px}
 
   /* ===== Facture imprimable — refonte premium ===== */
   .invoice{display:none}
@@ -159,6 +175,7 @@
         <button data-act="next">›</button>
       </div>
       <button class="btn-ghost btn" data-act="recalc">↻ Importer le planning</button>
+      <button class="btn-ghost btn" data-act="open-hist">📂 Factures enregistrées</button>
       <button class="btn-ghost btn" data-act="export-compta">⬇ Export compta</button>
       <button class="btn" data-act="print">🖨 Éditer la facture</button>
     </div>
@@ -201,6 +218,15 @@
 <!-- Facture imprimable -->
 <div class="invoice" id="invoice"></div>
 
+<div class="hist-ov" id="hist-ov">
+  <div class="hist-card">
+    <div class="hist-head">
+      <h3>📂 Factures enregistrées</h3>
+      <button class="hist-close" data-act="close-hist" title="Fermer">×</button>
+    </div>
+    <div class="hist-body" id="hist-body"></div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -458,7 +484,42 @@
     if(e.target&&e.target.id==='tva-rate'){ majTotaux(); }
   });
 
+  // ---- Historique des factures enregistrées (Supabase) ----
+  var histCache={};
+  function setTva(taux){ var sel=$('tva-rate'); if(!sel) return; for(var i=0;i<sel.options.length;i++){ if(Math.abs(parseFloat(sel.options[i].value)-(taux||0))<1e-9){ sel.selectedIndex=i; return; } } }
+  async function ouvrirHistorique(){
+    var body=$('hist-body'); body.innerHTML='<div class="hist-empty">Chargement…</div>';
+    $('hist-ov').classList.add('show');
+    if(!db){ body.innerHTML='<div class="hist-empty">Base indisponible.</div>'; return; }
+    try{
+      var r=await db.from('factures').select('*').order('cree_le',{ascending:false});
+      if(r.error) throw r.error;
+      var data=r.data||[];
+      if(!data.length){ body.innerHTML='<div class="hist-empty">Aucune facture enregistrée pour le moment.</div>'; return; }
+      histCache={}; var html='';
+      data.forEach(function(d){
+        histCache[d.id]=d;
+        html+='<div class="hist-row" data-act="load-hist" data-id="'+d.id+'">'+
+          '<div class="l"><div class="num">'+esc(d.numero||'—')+'</div><div class="cli">'+esc(d.client||'')+(d.email?' · '+esc(d.email):'')+'</div></div>'+
+          '<div class="r"><div class="ttc">'+eur(d.total_ttc||0)+'</div><div class="mois">'+esc(d.mois||'')+'</div></div>'+
+        '</div>';
+      });
+      body.innerHTML=html;
+    }catch(e){ body.innerHTML='<div class="hist-empty">Erreur de chargement.</div>'; }
+  }
+  function fermerHistorique(){ $('hist-ov').classList.remove('show'); }
+  function chargerFactureSauve(id){
+    var d=histCache[id]; if(!d) return;
+    $('cli-nom').value=d.client||''; $('cli-mail').value=d.email||''; $('cli-cmd').value=d.num_commande||''; $('fac-num').value=d.numero||'';
+    setTva(d.tva_taux!=null?d.tva_taux:0.20);
+    var lg=d.lignes||[]; if(typeof lg==='string'){ try{ lg=JSON.parse(lg); }catch(e){ lg=[]; } }
+    lines=lg.map(function(l){ return {lib:(l.designation||l.lib||''), pu:(l.pu||0), qte:(l.qte||0)}; });
+    if(!lines.length){ ensureLines(); }
+    manualEdit=true; fermerHistorique(); render(); toast('Facture « '+(d.numero||'')+' » chargée');
+  }
+
   document.addEventListener('click',function(e){
+    if(e.target && e.target.id==='hist-ov'){ fermerHistorique(); return; }
     var t=e.target.closest?e.target.closest('[data-act]'):null;
     if(!t) return;
     var act=t.getAttribute('data-act');
@@ -466,6 +527,9 @@
     else if(act==='next'){cursor.setMonth(cursor.getMonth()+1);render();}
     else if(act==='recalc'){recalc();toast('Quantités recalculées depuis le planning');}
       else if(act==='export-compta'){exportCompta();}
+      else if(act==='open-hist'){ ouvrirHistorique(); }
+      else if(act==='close-hist'){ fermerHistorique(); }
+      else if(act==='load-hist'){ chargerFactureSauve(t.getAttribute('data-id')); }
     else if(act==='add-line'){ lines.push(blankLine()); manualEdit=true; render(); }
     else if(act==='del-line'){ var di=+t.getAttribute('data-i'); if(di>=0){ lines.splice(di,1); manualEdit=true; render(); } }
     else if(act==='cli-save'){enregistrerClient();}
