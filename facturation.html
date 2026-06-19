@@ -88,7 +88,7 @@
     body{background:#fff;color:#000}
     main{padding:0;max-width:100%}
     .invoice{display:block!important}
-    @page{margin:14mm}
+    @page{size:A4;margin:0}
   }
   .invoice{--nav:#1a2230;--gold:#c8881d;--gold-l:#e0a93a;--inkd:#1f2733;--mut:#6b7480;--beige:#faf6ea;
     background:#fff;color:var(--inkd);padding:48px 44px;font-size:13px;max-width:820px;margin:0 auto;
@@ -249,7 +249,7 @@
   var cursor=new Date(); cursor.setDate(1); cursor.setHours(0,0,0,0);
   var lines=[];
   function blankLine(){ return {lib:'',pu:0,qte:0}; }
-  function ensureLines(){ if(!lines.length){ lines=[blankLine(),blankLine(),blankLine()]; } }
+  function ensureLines(){ if(!lines.length){ lines=[]; for(var _i=0;_i<20;_i++){ lines.push(blankLine()); } } }
   function totalHT(){ var s=0; for(var i=0;i<lines.length;i++) s+=(lines[i].pu||0)*(lines[i].qte||0); return s; }
   function majTotaux(){ var ht=totalHT(), tva=ht*tvaRate(), ttc=ht+tva;
     $('t-ht').textContent=eur(ht); $('t-tva').textContent=eur(tva); $('t-ttc').textContent=eur(ttc); }
@@ -472,9 +472,32 @@
     else if(act==='print'){
       if(!$('fac-num').value){toast('Renseigne un n° de facture d\'abord');$('fac-num').focus();return;}
       buildInvoice();
+      archiverFactureAuto();
       setTimeout(function(){window.print();},100);
     }
   });
+
+  // ---- Archivage AUTO de la facture dans Supabase (silencieux) ----
+  async function archiverFactureAuto(){
+    if(!db) return; // pas de DB dispo : on n'empêche jamais l'impression
+    try{
+      var ht=totalHT(), tva=ht*tvaRate(), ttc=ht+tva;
+      var lignes=lines
+        .filter(function(l){ return ((l.pu||0)*(l.qte||0)!==0) || (l.lib||'').trim()!==''; })
+        .map(function(l){ return {designation:(l.lib||''), pu:(l.pu||0), qte:(l.qte||0), montant:r2((l.pu||0)*(l.qte||0))}; });
+      var payload={
+        numero:($('fac-num').value||'').trim(),
+        client:($('cli-nom').value||'').trim(),
+        email:($('cli-mail').value||'').trim(),
+        num_commande:($('cli-cmd').value||'').trim(),
+        mois:MOIS[cursor.getMonth()]+' '+cursor.getFullYear(),
+        tva_taux:tvaRate(),
+        total_ht:r2(ht), total_tva:r2(tva), total_ttc:r2(ttc),
+        lignes:lignes
+      };
+      await db.from('factures').upsert(payload,{onConflict:'numero'});
+    }catch(e){ /* archivage silencieux : aucune interruption de l'impression */ }
+  }
 
   // ---- Carnet de clients (Supabase) ----
   var clients=[];
