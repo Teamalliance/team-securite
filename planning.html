@@ -513,20 +513,27 @@
     return out;
   }
   function moisCap(){ var s=moisLabel(); return s.charAt(0).toUpperCase()+s.slice(1); }
-  function msgPlanning(ag){ var r=agentRows(ag);
+  function listeBloc(r){
+    if(!r.rows.length) return '';
+    var out='';
+    for(var i=0;i<r.rows.length;i++){ var x=r.rows[i]; out+='\u2022 '+x.date+' : '+x.code+' '+x.hor+' ('+x.h+'h)\n'; }
+    return out+'Total : '+hNum(r.tot)+'h';
+  }
+  function corps(r,ch){ return ch==='mail' ? listeBloc(r) : tableBloc(r); }
+  function msgPlanning(ag,ch){ var r=agentRows(ag);
     var t='Bonjour '+ag.prenom+',\n\nVoici ton planning \u2014 '+moisCap()+' :\n\n';
-    t+= r.rows.length ? tableBloc(r) : 'Aucune vacation affect\u00e9e ce mois.';
+    t+= r.rows.length ? corps(r,ch) : 'Aucune vacation affect\u00e9e ce mois.';
     return t+'\n\n\u2014 Alliance Team S\u00e9curit\u00e9'; }
-  function msgPointage(ag){ var r=agentRows(ag);
+  function msgPointage(ag,ch){ var r=agentRows(ag);
     var t='Bonjour '+ag.prenom+',\n\nVoici ton pointage (heures r\u00e9alis\u00e9es) \u2014 '+moisCap()+' :\n\n';
-    t+= r.rows.length ? tableBloc(r) : 'Aucune heure enregistr\u00e9e ce mois.';
+    t+= r.rows.length ? corps(r,ch) : 'Aucune heure enregistr\u00e9e ce mois.';
     return t+'\n\nMerci de v\u00e9rifier et de signaler toute erreur.\n\u2014 Alliance Team S\u00e9curit\u00e9'; }
   function sendWA(ag,kind){ var intl=telIntl(ag.tel); if(!intl){ toast('Numéro manquant pour '+ag.prenom); return; }
     var txt=(kind==='pointage'?msgPointage(ag):msgPlanning(ag));
     window.open('https://wa.me/'+intl+'?text='+encodeURIComponent(txt),'_blank'); }
   function sendMail(ag,kind){ if(!ag.mail){ toast('E-mail manquant pour '+ag.prenom); return; }
     var subj=(kind==='pointage'?'Ton pointage ':'Ton planning ')+moisLabel();
-    var txt=(kind==='pointage'?msgPointage(ag):msgPlanning(ag));
+    var txt=(kind==='pointage'?msgPointage(ag,'mail'):msgPlanning(ag,'mail'));
     window.location.href='mailto:'+encodeURIComponent(ag.mail)+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(txt); }
   function openSend(){
     if(!agents.length){ toast('Aucun agent'); return; }
