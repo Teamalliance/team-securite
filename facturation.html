@@ -515,7 +515,7 @@
     var lg=d.lignes||[]; if(typeof lg==='string'){ try{ lg=JSON.parse(lg); }catch(e){ lg=[]; } }
     lines=lg.map(function(l){ return {lib:(l.designation||l.lib||''), pu:(l.pu||0), qte:(l.qte||0)}; });
     if(!lines.length){ ensureLines(); }
-    manualEdit=true; fermerHistorique(); render(); toast('Facture « '+(d.numero||'')+' » chargée');
+    manualEdit=true; fermerHistorique(); render(); buildInvoice(); toast('Facture « '+(d.numero||'')+' » — génération du PDF…'); setTimeout(function(){ window.print(); }, 250);
   }
 
   document.addEventListener('click',function(e){
