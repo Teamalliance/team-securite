@@ -101,7 +101,7 @@
   /* ===== Facture imprimable — refonte premium ===== */
   .invoice{display:none}
   @media print{
-    header,nav,.bar,.info-box,.client-bar,.client-card,.lines,.totaux-fac,.note,.actions-row{display:none!important}
+    header,nav,.bar,.info-box,.client-bar,.client-card,.lines,.totaux-fac,.note,.actions-row,.toast,.hist-ov{display:none!important}
     body{background:#fff;color:#000}
     main{padding:0;max-width:100%}
     .invoice{display:block!important}
@@ -515,7 +515,7 @@
     var lg=d.lignes||[]; if(typeof lg==='string'){ try{ lg=JSON.parse(lg); }catch(e){ lg=[]; } }
     lines=lg.map(function(l){ return {lib:(l.designation||l.lib||''), pu:(l.pu||0), qte:(l.qte||0)}; });
     if(!lines.length){ ensureLines(); }
-    manualEdit=true; fermerHistorique(); render(); buildInvoice(); toast('Facture « '+(d.numero||'')+' » — génération du PDF…'); setTimeout(function(){ window.print(); }, 250);
+    manualEdit=true; fermerHistorique(); render(); buildInvoice(); setTimeout(function(){ window.print(); }, 250);
   }
 
   document.addEventListener('click',function(e){
