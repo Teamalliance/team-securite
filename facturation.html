@@ -97,6 +97,8 @@
   .hist-row .r .ttc{font-weight:800;color:var(--accent);font-size:14px}
   .hist-row .r .mois{font-size:11px;color:var(--ink-faint);text-transform:capitalize;margin-top:2px}
   .hist-empty{padding:30px;text-align:center;color:var(--ink-soft);font-size:13.5px}
+  .hist-edit{background:var(--panel-2);border:1px solid var(--line);color:var(--accent);font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .hist-edit:hover{border-color:var(--accent);background:var(--line)}
 
   /* ===== Facture imprimable — refonte premium ===== */
   .invoice{display:none}
@@ -502,13 +504,24 @@
         html+='<div class="hist-row" data-act="load-hist" data-id="'+d.id+'">'+
           '<div class="l"><div class="num">'+esc(d.numero||'—')+'</div><div class="cli">'+esc(d.client||'')+(d.email?' · '+esc(d.email):'')+'</div></div>'+
           '<div class="r"><div class="ttc">'+eur(d.total_ttc||0)+'</div><div class="mois">'+esc(d.mois||'')+'</div></div>'+
+          '<button class="hist-edit" data-act="edit-hist" data-id="'+d.id+'">✏️ Modifier</button>'+
         '</div>';
       });
       body.innerHTML=html;
     }catch(e){ body.innerHTML='<div class="hist-empty">Erreur de chargement.</div>'; }
   }
   function fermerHistorique(){ $('hist-ov').classList.remove('show'); }
-  function chargerFactureSauve(id){
+  function modifierFactureSauve(id){
+    var d=histCache[id]; if(!d) return;
+    $('cli-nom').value=d.client||''; $('cli-mail').value=d.email||''; $('cli-cmd').value=d.num_commande||''; $('fac-num').value=d.numero||'';
+    setTva(d.tva_taux!=null?d.tva_taux:0.20);
+    var lg=d.lignes||[]; if(typeof lg==='string'){ try{ lg=JSON.parse(lg); }catch(e){ lg=[]; } }
+    lines=lg.map(function(l){ return {lib:(l.designation||l.lib||''), pu:(l.pu||0), qte:(l.qte||0)}; });
+    if(!lines.length){ ensureLines(); }
+    manualEdit=true; fermerHistorique(); render();
+    toast('Facture chargée — modifie puis « Éditer la facture »');
+    try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){ window.scrollTo(0,0); }
+  }function chargerFactureSauve(id){
     var d=histCache[id]; if(!d) return;
     $('cli-nom').value=d.client||''; $('cli-mail').value=d.email||''; $('cli-cmd').value=d.num_commande||''; $('fac-num').value=d.numero||'';
     setTva(d.tva_taux!=null?d.tva_taux:0.20);
@@ -529,7 +542,8 @@
       else if(act==='export-compta'){exportCompta();}
       else if(act==='open-hist'){ ouvrirHistorique(); }
       else if(act==='close-hist'){ fermerHistorique(); }
-      else if(act==='load-hist'){ chargerFactureSauve(t.getAttribute('data-id')); }
+     else if(act==='load-hist'){ chargerFactureSauve(t.getAttribute('data-id')); }
+    else if(act==='edit-hist'){ modifierFactureSauve(t.getAttribute('data-id')); }
     else if(act==='add-line'){ lines.push(blankLine()); manualEdit=true; render(); }
     else if(act==='del-line'){ var di=+t.getAttribute('data-i'); if(di>=0){ lines.splice(di,1); manualEdit=true; render(); } }
     else if(act==='cli-save'){enregistrerClient();}
